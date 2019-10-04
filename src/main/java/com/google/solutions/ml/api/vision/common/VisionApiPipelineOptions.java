@@ -1,0 +1,57 @@
+/*
+ * Copyright (C) 2019 Google Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.google.solutions.ml.api.vision.common;
+
+import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+
+/** Interface to store pipeline options provided by the user */
+public interface VisionApiPipelineOptions extends DataflowPipelineOptions {
+
+  @Description("The file pattern to read records from (e.g. gs://bucket/file-*.jpg)")
+  String getInputFilePattern();
+
+  void setInputFilePattern(String value);
+
+  @Description(
+      "List of features to be included seperated by comma(e.g. FACE_DETECTION,LANDMARK_DETECTION ")
+  String getFeatureType();
+
+  void setFeatureType(String value);
+
+  @Description("Big Query data set must exist before the pipeline runs (e.g. pii-dataset")
+  String getDatasetName();
+
+  void setDatasetName(String value);
+
+  @Description("Project id to be used for DLP Tokenization")
+  String getVisionApiProjectId();
+
+  void setVisionApiProjectId(String value);
+
+  @Description("Selected Cloumns from API fields for BigQuery Table")
+  String getSelectedColumns();
+
+  void setSelectedColumns(@Nullable String value);
+
+  @Description("BigQuery Storage Mode")
+  @Default.Boolean(true)
+  boolean getRawJsonMode();
+
+  void setRawJsonMode(boolean mode);
+}
