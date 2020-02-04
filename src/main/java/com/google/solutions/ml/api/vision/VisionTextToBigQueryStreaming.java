@@ -86,11 +86,11 @@ public class VisionTextToBigQueryStreaming {
   public static final Logger LOG = LoggerFactory.getLogger(VisionTextToBigQueryStreaming.class);
 
   /** Default window interval to create side inputs for header records. */
-  private static final Duration WINDOW_INTERVAL = Duration.standardSeconds(30);
+  private static final Duration WINDOW_INTERVAL = Duration.standardSeconds(5);
   /** Default interval for polling files in GCS. */
-  private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(120);
+  private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(5);
   /** Default batch size if value not provided in execution. */
-  private static final Integer DEFAULT_BATCH_SIZE = 16;
+  private static final Integer DEFAULT_BATCH_SIZE=16;
 
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
@@ -139,7 +139,7 @@ public class VisionTextToBigQueryStreaming {
                         MapImageFiles.successTag, TupleTagList.of(MapImageFiles.failureTag)))
             .get(MapImageFiles.successTag)
             .apply(
-                "Fixed Window(30 Sec)",
+                "Fixed Window",
                 Window.<KV<String, String>>into(FixedWindows.of(WINDOW_INTERVAL))
                     .triggering(
                         AfterWatermark.pastEndOfWindow()

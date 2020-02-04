@@ -5,6 +5,46 @@ This dataflow streaming pipeline can be used to process large scale image files 
 
 ![ref_arch](diagram/vision_api_ref_arch.png)
 
+
+# Setup a Customer Demo
+
+1. Clone the repo: 
+
+```glogin 
+git clone sso://user/masudhasan/df-vision-api
+cd dataflow-vision-api
+```
+
+2. Run the deploy script. 
+
+```
+gcloud init
+gcloud config set project [project_id]
+sh deploy.sh
+```
+
+3. Validate the BigQuery Table. Please allow 5-8 mins for dataflow process to complete.
+
+
+```
+CREATE TEMP FUNCTION json2array(json STRING)
+RETURNS ARRAY<STRING>
+LANGUAGE js AS """
+  return JSON.parse(json).map(x=>JSON.stringify(x));
+"""; 
+
+SELECT * EXCEPT(array_commits),
+  ARRAY(SELECT JSON_EXTRACT_SCALAR(x, '$.description') FROM UNNEST(array_commits) x) descriptions,
+  ARRAY(SELECT JSON_EXTRACT_SCALAR(x, '$.score') FROM UNNEST(array_commits) x) score
+FROM (
+SELECT file_name, json2array(JSON_EXTRACT(raw_json_response, '$')) array_commits
+FROM `[project_id].image_data.VISION_API_FINDINGS_RAW_JSON` 
+WHERE feature_type='labelAnnotations')
+
+
+SELECT file_name, count(description) FROM `[project_id].image_data.VISION_API_FINDINGS_LABEL_DETECTION` group by file_name
+``` 
+# To Learn More About This Solution
 # Before Start
 This pipeline operates in two different modes:  
 

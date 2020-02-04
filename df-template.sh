@@ -13,22 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -x
-
-echo "please to use glocud make sure you completed authentication"
-echo "gcloud config set project templates-user"
-echo "gcloud auth application-default login"
-
-PROJECT_ID=df-vision-api-test
-JOB_NAME="vision-api-pipeline-`date +%Y%m%d-%H%M%S-%N`"
+PROJECT_ID=$1
+JOB_NAME="vision-api-default-`date +%Y%m%d-%H%M%S-%N`"
 echo JOB_NAME=$JOB_NAME
-GCS_IMAGE_FILE_PATH=gs://vision-api-data-test/*.jpeg
-BIGQUERY_DATASET=VISION_APIS_DATASET
-# Optional Parameter - By default LABEL_DETECTION is used
-FEATURE_TYPE='{\"featureConfig\":[{\"type\":\"FACE_DETECTION\"},{\"type\":\"LANDMARK_DETECTION\"}]}'
-# change only when you created your own image
+GCS_IMAGE_FILE_PATH=gs://$2/*.*
+BIGQUERY_DATASET=$3
+FEATURE_TYPE=$4
+SELECTED_COLUMNS=$5
+API_KEY=$6
+echo $API_KEY 
+# publicly hosted image
 DYNAMIC_TEMPLATE_BUCKET_SPEC=gs://vision-api-data-test/dynamic_template_spec/dynamic_template_vison_api.json
-# change only when you created your own image
-GCS_STAGING_LOCATION=gs://vision-api-data-test/dynamic_template_spec/log
+# log location
+GCS_STAGING_LOCATION=gs://$2/log
 PARAMETERS_CONFIG='{  
    "jobName":"'$JOB_NAME'",
    "parameters":{  
@@ -36,22 +33,20 @@ PARAMETERS_CONFIG='{
       "inputFilePattern":"'${GCS_IMAGE_FILE_PATH}'",
       "datasetName":"'${BIGQUERY_DATASET}'",
       "visionApiProjectId":"'${PROJECT_ID}'",
-	  "featureType":"'${FEATURE_TYPE}'",
       "region":"us-central-1",
       "experiments":"enable_streaming_engine",
       "workerMachineType":"n1-standard-4",
       "autoscalingAlgorithm":"THROUGHPUT_BASED",
-      "maxNumWorkers":"2"
+      "maxNumWorkers":"3"
    }
 }'
 
 API_ROOT_URL="https://dataflow.googleapis.com"
 TEMPLATES_LAUNCH_API="${API_ROOT_URL}/v1b3/projects/${PROJECT_ID}/templates:launch"
 curl -X POST -H "Content-Type: application/json" \
- -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Authorization: Bearer ${API_KEY}" \
  "${TEMPLATES_LAUNCH_API}"`
  `"?validateOnly=false"`
  `"&dynamicTemplate.gcsPath=${DYNAMIC_TEMPLATE_BUCKET_SPEC}"` \
  `"&dynamicTemplate.stagingLocation=${GCS_STAGING_LOCATION}" \
  -d "${PARAMETERS_CONFIG}"
- 

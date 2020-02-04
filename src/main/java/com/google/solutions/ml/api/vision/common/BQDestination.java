@@ -48,7 +48,7 @@ public class BQDestination extends DynamicDestinations<KV<String, TableRow>, KV<
   public KV<String, TableRow> getDestination(ValueInSingleWindow<KV<String, TableRow>> element) {
     String key = element.getValue().getKey();
     String tableName = String.format("%s:%s.%s", projectId, datasetName, key);
-    LOG.debug("Table Name {}", tableName);
+    LOG.info("Table Name {}", tableName);
     return KV.of(tableName, element.getValue().getValue());
   }
 
