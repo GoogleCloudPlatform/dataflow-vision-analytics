@@ -10,7 +10,8 @@ This dataflow streaming pipeline can be used to process large scale image files 
 
 1. Clone the repo: 
 
-```glogin 
+```
+glogin 
 git clone sso://user/masudhasan/df-vision-api
 cd dataflow-vision-api
 ```
@@ -27,6 +28,8 @@ sh deploy.sh
 
 
 ```
+// validate raw json mode
+
 CREATE TEMP FUNCTION json2array(json STRING)
 RETURNS ARRAY<STRING>
 LANGUAGE js AS """
@@ -41,7 +44,7 @@ SELECT file_name, json2array(JSON_EXTRACT(raw_json_response, '$')) array_commits
 FROM `[project_id].image_data.VISION_API_FINDINGS_RAW_JSON` 
 WHERE feature_type='labelAnnotations')
 
-
+// validate select column mode
 SELECT file_name, count(description) FROM `[project_id].image_data.VISION_API_FINDINGS_LABEL_DETECTION` group by file_name
 ``` 
 # To Learn More About This Solution
