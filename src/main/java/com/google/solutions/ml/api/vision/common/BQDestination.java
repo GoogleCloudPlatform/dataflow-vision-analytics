@@ -48,7 +48,7 @@ public class BQDestination extends DynamicDestinations<KV<String, TableRow>, KV<
   public KV<String, TableRow> getDestination(ValueInSingleWindow<KV<String, TableRow>> element) {
     String key = element.getValue().getKey();
     String tableName = String.format("%s:%s.%s", projectId, datasetName, key);
-    LOG.info("Table Name {}", tableName);
+    LOG.debug("Table Name {}", tableName);
     return KV.of(tableName, element.getValue().getValue());
   }
 
@@ -73,7 +73,6 @@ public class BQDestination extends DynamicDestinations<KV<String, TableRow>, KV<
       /** currently all BQ data types are set to String */
       fields.add(new TableFieldSchema().setName(header).setType("STRING"));
     }
-
     schema.setFields(fields);
     LOG.info("Schema {}", schema.toString());
     return schema;

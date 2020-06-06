@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * CreateFeatureList {@link CreateFeatureList} class creates a list of feature type from JSON config
  * and pass it on to Feature type proto as a side input
  */
-public class CreateFeatureList extends DoFn<KV<String, Iterable<String>>, Feature> {
+public class CreateFeatureList extends DoFn<Iterable<String>, Feature> {
   public static final Logger LOG = LoggerFactory.getLogger(CreateFeatureList.class);
   /** Default Feature List is set to LABEL_DETECTION */
   private static final String DEFAULT_FEATURE_TYPE =

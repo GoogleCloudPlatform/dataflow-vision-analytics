@@ -23,10 +23,28 @@ import org.apache.beam.sdk.options.Description;
 /** Interface to store pipeline options provided by the user */
 public interface VisionApiPipelineOptions extends DataflowPipelineOptions {
 
-  @Description("The file pattern to read records from (e.g. gs://bucket/file-*.jpg)")
-  String getInputFilePattern();
+  @Description("Subscriber Id to receive message from")
+  String getSubscriberId();
 
-  void setInputFilePattern(String value);
+  void setSubscriberId(String value);
+
+  @Description("key range")
+  @Default.Integer(1)
+  Integer getKeyRange();
+
+  void setKeyRange(Integer value);
+
+  @Description("Image Batch Size")
+  @Default.Integer(1)
+  Integer getBatchSize();
+
+  void setBatchSize(Integer value);
+
+  @Description("Window Interval -Default to 5 secs")
+  @Default.Integer(5)
+  Integer getWindowInterval();
+
+  void setWindowInterval(Integer value);
 
   @Description(
       "List of features to be included seperated by comma(e.g. FACE_DETECTION,LANDMARK_DETECTION ")

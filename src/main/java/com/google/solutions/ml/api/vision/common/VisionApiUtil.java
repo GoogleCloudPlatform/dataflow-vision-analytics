@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -54,6 +55,20 @@ import org.slf4j.LoggerFactory;
 public class VisionApiUtil {
 
   public static final Logger LOG = LoggerFactory.getLogger(VisionApiUtil.class);
+
+  public static final String ALLOWED_NOTIFICATION_EVENT_TYPE = String.valueOf("OBJECT_FINALIZE");
+  /** Allowed image extension supported by Vision API */
+  public static final String FILE_PATTERN = "(^.*\\.(JPEG|jpeg|JPG|jpg|PNG|png|GIF|gif)$)";
+  /** Error message if no valid extension found */
+  public static final String NO_VALID_EXT_FOUND_ERROR_MESSAGE =
+      "File {} does not contain a valid extension";
+  /** Default window interval to create side inputs for header records. */
+  public static final Duration WINDOW_INTERVAL = Duration.standardSeconds(5);
+  /** Default interval for polling files in GCS. */
+  public static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(5);
+  /** Default batch size if value not provided in execution. */
+  public static final Integer DEFAULT_BATCH_SIZE = 16;
+
   public static TupleTag<KV<String, TableRow>> failureTag = new TupleTag<KV<String, TableRow>>() {};
 
   public static TupleTag<KV<String, TableRow>> successTag = new TupleTag<KV<String, TableRow>>() {};
@@ -105,7 +120,7 @@ public class VisionApiUtil {
 
     json.put("file_name", imageName);
     json.put("transaction_timestamp", getTimeStamp());
-    LOG.info("generic Json {}", json.toString());
+    LOG.debug("generic Json {}", json.toString());
 
     return json;
   }
@@ -124,7 +139,7 @@ public class VisionApiUtil {
       fieldMaskBuilder.addPaths(path);
     }
     FieldMask masks = fieldMaskBuilder.build();
-    LOG.info("Field Mask Config {}", masks.toString());
+    LOG.debug("Field Mask Config {}", masks.toString());
     return fieldMaskBuilder.build();
   }
 

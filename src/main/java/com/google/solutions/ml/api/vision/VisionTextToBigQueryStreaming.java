@@ -22,75 +22,32 @@ import com.google.protobuf.FieldMask;
 import com.google.solutions.ml.api.vision.common.BQDestination;
 import com.google.solutions.ml.api.vision.common.CreateFeatureList;
 import com.google.solutions.ml.api.vision.common.CreateImageReqest;
-import com.google.solutions.ml.api.vision.common.MapImageFiles;
 import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
+import com.google.solutions.ml.api.vision.common.ReadImageTransform;
 import com.google.solutions.ml.api.vision.common.VisionApiPipelineOptions;
 import com.google.solutions.ml.api.vision.common.VisionApiUtil;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
-import org.apache.beam.sdk.io.Compression;
-import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.Watch;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The {@link VisionTextToBigQueryStreaming} is a streaming pipeline that reads image files from a
- * storage location (e.g. Google Cloud Storage), uses Cloud Vision API to classify into predefined
- * categories and store the results in BigQuery for analysis or feed into custom machine learning
- * model
- *
- * <p><b>Pipeline Requirements</b>
- *
- * <ul>
- *   <li>GCS Bucket Containing Image Files
- *   <li>The BigQuery Dataset exists
- * </ul>
- *
- * <p><b>Example Usage</b>
- *
- * <pre>
- * Default Mode: Generate JSON output for Label Detection
- * gradle run -DmainClass=com.google.solutions.ml.api.vision.VisionTextToBigQueryStreaming
- * -Pargs=" --streaming --project=<project_id>
- * --runner=DataflowRunner
- * --inputFilePattern=gs://{bucket_path}/*.jpg
- * --datasetName=<dataset>
- * --visionApiProjectId=<project_id>
- * --enableStreamingEngine"
- * </pre>
- */
 public class VisionTextToBigQueryStreaming {
   public static final Logger LOG = LoggerFactory.getLogger(VisionTextToBigQueryStreaming.class);
-
-  /** Default window interval to create side inputs for header records. */
-  private static final Duration WINDOW_INTERVAL = Duration.standardSeconds(5);
-  /** Default interval for polling files in GCS. */
-  private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(5);
-  /** Default batch size if value not provided in execution. */
-  private static final Integer DEFAULT_BATCH_SIZE = 16;
 
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
@@ -115,41 +72,25 @@ public class VisionTextToBigQueryStreaming {
   public static PipelineResult run(VisionApiPipelineOptions options) throws Exception {
 
     Pipeline p = Pipeline.create(options);
-
     /*
      * Side input to create a map of selected columns.
      */
+
     final PCollectionView<Map<String, FieldMask>> selectedColumnsMap =
         p.apply(
                 Create.of(VisionApiUtil.convertJsonToFieldMask(options.getSelectedColumns()))
                     .withCoder(KvCoder.of(StringUtf8Coder.of(), ProtoCoder.of(FieldMask.class))))
             .apply(View.asMap());
 
-    PCollection<KV<String, Iterable<String>>> imageFiles =
+    PCollection<List<String>> imageFiles =
         p.apply(
-                "Poll Input Files",
-                FileIO.match()
-                    .filepattern(options.getInputFilePattern())
-                    .continuously(DEFAULT_POLL_INTERVAL, Watch.Growth.never()))
-            .apply("Find Pattern Match", FileIO.readMatches().withCompression(Compression.AUTO))
-            .apply(
-                "Get File Path",
-                ParDo.of(new MapImageFiles())
-                    .withOutputTags(
-                        MapImageFiles.successTag, TupleTagList.of(MapImageFiles.failureTag)))
-            .get(MapImageFiles.successTag)
-            .apply(
-                "Fixed Window",
-                Window.<KV<String, String>>into(FixedWindows.of(WINDOW_INTERVAL))
-                    .triggering(
-                        AfterWatermark.pastEndOfWindow()
-                            .withEarlyFirings(
-                                AfterProcessingTime.pastFirstElementInPane()
-                                    .plusDelayOf(Duration.ZERO)))
-                    .discardingFiredPanes()
-                    .withAllowedLateness(Duration.ZERO))
-            .apply(GroupIntoBatches.<String, String>ofSize(DEFAULT_BATCH_SIZE))
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+            "ReadTransform",
+            ReadImageTransform.newBuilder()
+                .setBatchSize(options.getBatchSize())
+                .setWindowInterval(options.getWindowInterval())
+                .setKeyRange(options.getKeyRange())
+                .setSubscriber(options.getSubscriberId())
+                .build());
 
     /*
      * Side input to create the list of features
@@ -192,8 +133,8 @@ public class VisionTextToBigQueryStreaming {
                     element -> {
                       return element.getValue();
                     })
+                .ignoreInsertIds()
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                .withoutValidation()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
 
     return p.run();

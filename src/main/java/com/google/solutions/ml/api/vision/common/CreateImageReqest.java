@@ -24,7 +24,6 @@ import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.cloud.vision.v1.ImageSource;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -38,8 +37,7 @@ import org.slf4j.LoggerFactory;
  * CreateImageRequest {@link CreateImageReqest} batch the list of images with feature type and
  * create AnnotateImage Request
  */
-public class CreateImageReqest
-    extends DoFn<KV<String, Iterable<String>>, KV<String, AnnotateImageResponse>> {
+public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateImageResponse>> {
   public static final Logger LOG = LoggerFactory.getLogger(CreateImageReqest.class);
 
   public static TupleTag<KV<String, AnnotateImageResponse>> successTag =
@@ -48,11 +46,9 @@ public class CreateImageReqest
 
   private PCollectionView<List<Feature>> featureList;
   private ImageAnnotatorClient visionApiClient;
-  private List<AnnotateImageRequest> requests;
 
   public CreateImageReqest(PCollectionView<List<Feature>> featureList) {
     this.featureList = featureList;
-    this.requests = new ArrayList<>();
   }
 
   @StartBundle
@@ -74,22 +70,24 @@ public class CreateImageReqest
 
   @ProcessElement
   public void processElement(ProcessContext c) {
+	List<AnnotateImageRequest> requests= new ArrayList<>();
+    List<String> imgList = c.element();
+    LOG.info("Image List Size {}", imgList.size());
 
-    Iterator<String> imgItr = c.element().getValue().iterator();
     AtomicInteger index = new AtomicInteger(0);
-    String bucketName = c.element().getKey();
     List<Feature> features = c.sideInput(featureList);
-    while (imgItr.hasNext()) {
-      String imagePath = String.format("%s%s", bucketName, imgItr.next());
-      Image image =
-          Image.newBuilder()
-              .setSource(ImageSource.newBuilder().setImageUri(imagePath).build())
-              .build();
-      AnnotateImageRequest.Builder request =
-          AnnotateImageRequest.newBuilder().setImage(image).addAllFeatures(features);
-      requests.add(request.build());
-    }
+    imgList.forEach(
+        img -> {
+          Image image =
+              Image.newBuilder()
+                  .setSource(ImageSource.newBuilder().setImageUri(img).build())
+                  .build();
+          AnnotateImageRequest.Builder request =
+              AnnotateImageRequest.newBuilder().setImage(image).addAllFeatures(features);
+          requests.add(request.build());
+        });
 
+    LOG.info("Request Size {}", requests.size());
     List<AnnotateImageResponse> responses =
         visionApiClient.batchAnnotateImages(requests).getResponsesList();
 

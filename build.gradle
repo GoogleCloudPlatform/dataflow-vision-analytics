@@ -16,7 +16,8 @@
 buildscript {
     ext {
         dataflowBeamVersion = '2.21.0'
-        visionApiVersion = '1.87.0'
+        visionApiVersion = '1.99.3'
+        
         
     }
     repositories {
@@ -46,8 +47,8 @@ apply plugin: 'com.google.cloud.tools.jib'
 apply plugin: "com.diffplug.gradle.spotless"
 
 
-//mainClassName = System.getProperty("mainClass")
-mainClassName = 'com.google.solution.ml.api.vision.VisionTextToBigQueryStreaming' 
+mainClassName = System.getProperty("mainClass")
+//mainClassName = 'com.google.solution.ml.api.vision.VisionTextToBigQueryStreaming' 
 jib {
   from {
     image = 'gcr.io/dataflow-templates-base/java8-template-launcher-base:latest'
@@ -127,6 +128,10 @@ spotless {
     googleJavaFormat()
   }
 }
-
+configurations.all {
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
+  }
+} 
 run.mustRunAfter 'resources'
 
