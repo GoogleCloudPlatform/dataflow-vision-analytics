@@ -30,6 +30,9 @@ import com.google.cloud.vision.v1.WebDetection;
 import com.google.protobuf.FieldMask;
 import java.io.IOException;
 import java.util.Map;
+
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -47,7 +50,8 @@ public class ProcessImageResponse
   private boolean rawJsonMode;
   private String bqTableName;
   PCollectionView<Map<String, FieldMask>> selectedColumnAnnotationMap;
-
+  private final Counter numberOfAnnotationResponse =
+	        Metrics.counter(ProcessImageResponse.class, "NumberOfAnnotationProcessed");
   public ProcessImageResponse(
       boolean rawJsonMode, PCollectionView<Map<String, FieldMask>> selectedColumnAnnotationMap) {
     this.selectedColumnAnnotationMap = selectedColumnAnnotationMap;
@@ -60,7 +64,6 @@ public class ProcessImageResponse
     String imageName = c.element().getKey();
     AnnotateImageResponse imageResponse = c.element().getValue();
     if (!rawJsonMode) {
-
       imageResponse
           .getAllFields()
           .entrySet()
@@ -72,7 +75,9 @@ public class ProcessImageResponse
                 try {
                   switch (annotationElement) {
                     case "labelAnnotations":
-                      for (EntityAnnotation annotation : imageResponse.getLabelAnnotationsList()) {
+                    	numberOfAnnotationResponse.inc(imageResponse.getLabelAnnotationsCount());
+
+                    	for (EntityAnnotation annotation : imageResponse.getLabelAnnotationsList()) {
                         FieldMask mask = c.sideInput(selectedColumnAnnotationMap).get(key);
                         bqTableName =
                             VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION");
@@ -87,7 +92,8 @@ public class ProcessImageResponse
                       }
                       break;
                     case "landmarkAnnotations":
-                      for (EntityAnnotation annotation :
+                    	numberOfAnnotationResponse.inc(imageResponse.getLandmarkAnnotationsCount());
+                    	for (EntityAnnotation annotation :
                           imageResponse.getLandmarkAnnotationsList()) {
                         FieldMask mask = c.sideInput(selectedColumnAnnotationMap).get(key);
                         bqTableName =

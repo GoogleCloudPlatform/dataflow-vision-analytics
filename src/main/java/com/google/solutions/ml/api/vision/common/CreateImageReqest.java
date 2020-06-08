@@ -26,6 +26,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -46,7 +49,10 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
 
   private PCollectionView<List<Feature>> featureList;
   private ImageAnnotatorClient visionApiClient;
-
+  private final Counter numberOfRequest =
+	        Metrics.counter(CreateImageReqest.class, "NumberOfImageRequest");
+  private final Counter numberOfResponse =
+	        Metrics.counter(CreateImageReqest.class, "NumberOfImageResponse");
   public CreateImageReqest(PCollectionView<List<Feature>> featureList) {
     this.featureList = featureList;
   }
@@ -72,7 +78,6 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
   public void processElement(ProcessContext c) {
 	List<AnnotateImageRequest> requests= new ArrayList<>();
     List<String> imgList = c.element();
-    LOG.info("Image List Size {}", imgList.size());
 
     AtomicInteger index = new AtomicInteger(0);
     List<Feature> features = c.sideInput(featureList);
@@ -87,10 +92,10 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
           requests.add(request.build());
         });
 
-    LOG.info("Request Size {}", requests.size());
     List<AnnotateImageResponse> responses =
         visionApiClient.batchAnnotateImages(requests).getResponsesList();
 
+    numberOfRequest.inc(requests.size());
     for (AnnotateImageResponse res : responses) {
       if (res.hasError()) {
         ErrorMessageBuilder errorBuilder =
@@ -100,12 +105,14 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
                 .setTimeStamp(VisionApiUtil.getTimeStamp())
                 .build()
                 .withTableRow(new TableRow());
+        LOG.error("Error {}",errorBuilder.toString());
         c.output(
             failureTag,
             KV.of(VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"), errorBuilder.tableRow()));
       } else {
         String imageName =
             requests.get(index.getAndIncrement()).getImage().getSource().getImageUri();
+        numberOfResponse.inc(1);
         c.output(KV.of(imageName, res));
       }
     }

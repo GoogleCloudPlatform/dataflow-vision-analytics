@@ -187,7 +187,7 @@ public class VisionApiUtil {
         });
 
     row.setF(cells);
-    LOG.info("Row {}", row.toString());
+    LOG.debug("Row {}", row.toString());
     return row;
   }
 

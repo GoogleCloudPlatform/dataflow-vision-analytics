@@ -16,18 +16,9 @@
 
 package com.google.solutions.ml.api.vision;
 
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.vision.v1.Feature;
-import com.google.protobuf.FieldMask;
-import com.google.solutions.ml.api.vision.common.BQDestination;
-import com.google.solutions.ml.api.vision.common.CreateFeatureList;
-import com.google.solutions.ml.api.vision.common.CreateImageReqest;
-import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
-import com.google.solutions.ml.api.vision.common.ReadImageTransform;
-import com.google.solutions.ml.api.vision.common.VisionApiPipelineOptions;
-import com.google.solutions.ml.api.vision.common.VisionApiUtil;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -45,6 +36,17 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.vision.v1.Feature;
+import com.google.protobuf.FieldMask;
+import com.google.solutions.ml.api.vision.common.BQDestination;
+import com.google.solutions.ml.api.vision.common.CreateFeatureList;
+import com.google.solutions.ml.api.vision.common.CreateImageReqest;
+import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
+import com.google.solutions.ml.api.vision.common.ReadImageTransform;
+import com.google.solutions.ml.api.vision.common.VisionApiPipelineOptions;
+import com.google.solutions.ml.api.vision.common.VisionApiUtil;
 
 public class VisionTextToBigQueryStreaming {
   public static final Logger LOG = LoggerFactory.getLogger(VisionTextToBigQueryStreaming.class);
