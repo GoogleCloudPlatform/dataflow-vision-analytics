@@ -50,12 +50,12 @@ public class MapImageFiles extends DoFn<ReadableFile, KV<String, String>> {
             ErrorMessageBuilder.newBuilder()
                 .setErrorMessage(NO_VALID_EXT_FOUND_ERROR_MESSAGE)
                 .setFileName(imageFileName)
-                .setTimeStamp(VisionApiUtil.getTimeStamp())
+                .setTimeStamp(Util.getTimeStamp())
                 .build()
                 .withTableRow(new TableRow());
         c.output(
             failureTag,
-            KV.of(VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"), errorBuilder.tableRow()));
+            KV.of(Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"), errorBuilder.tableRow()));
       }
     } catch (Exception e) {
 
@@ -64,13 +64,12 @@ public class MapImageFiles extends DoFn<ReadableFile, KV<String, String>> {
           ErrorMessageBuilder.newBuilder()
               .setErrorMessage(e.getMessage())
               .setFileName(imageFileName)
-              .setTimeStamp(VisionApiUtil.getTimeStamp())
+              .setTimeStamp(Util.getTimeStamp())
               .setStackTrace(e.getStackTrace().toString())
               .build()
               .withTableRow(new TableRow());
       c.output(
-          failureTag,
-          KV.of(VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"), errorBuilder.tableRow()));
+          failureTag, KV.of(Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"), errorBuilder.tableRow()));
     }
   }
 }

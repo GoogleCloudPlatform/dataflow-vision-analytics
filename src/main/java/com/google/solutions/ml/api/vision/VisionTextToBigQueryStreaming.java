@@ -16,37 +16,33 @@
 
 package com.google.solutions.ml.api.vision;
 
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.vision.v1.Feature;
+import com.google.protobuf.FieldMask;
+import com.google.solutions.ml.api.vision.common.BigQueryDynamicTransform;
+import com.google.solutions.ml.api.vision.common.CreateFeatureList;
+import com.google.solutions.ml.api.vision.common.CreateImageReqest;
+import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
+import com.google.solutions.ml.api.vision.common.ReadImageTransform;
+import com.google.solutions.ml.api.vision.common.Util;
+import com.google.solutions.ml.api.vision.common.VisionApiPipelineOptions;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.vision.v1.Feature;
-import com.google.protobuf.FieldMask;
-import com.google.solutions.ml.api.vision.common.BQDestination;
-import com.google.solutions.ml.api.vision.common.CreateFeatureList;
-import com.google.solutions.ml.api.vision.common.CreateImageReqest;
-import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
-import com.google.solutions.ml.api.vision.common.ReadImageTransform;
-import com.google.solutions.ml.api.vision.common.VisionApiPipelineOptions;
-import com.google.solutions.ml.api.vision.common.VisionApiUtil;
 
 public class VisionTextToBigQueryStreaming {
   public static final Logger LOG = LoggerFactory.getLogger(VisionTextToBigQueryStreaming.class);
@@ -80,7 +76,7 @@ public class VisionTextToBigQueryStreaming {
 
     final PCollectionView<Map<String, FieldMask>> selectedColumnsMap =
         p.apply(
-                Create.of(VisionApiUtil.convertJsonToFieldMask(options.getSelectedColumns()))
+                Create.of(Util.convertJsonToFieldMask(options.getSelectedColumns()))
                     .withCoder(KvCoder.of(StringUtf8Coder.of(), ProtoCoder.of(FieldMask.class))))
             .apply(View.asMap());
 
@@ -108,36 +104,22 @@ public class VisionTextToBigQueryStreaming {
             .get(CreateFeatureList.successTag)
             .apply(View.asList());
 
-    PCollectionTuple imageResponses =
+    PCollection<KV<String, TableRow>> imageResponses =
         imageFiles
             .apply(
                 "Create Image Request",
-                ParDo.of(new CreateImageReqest(featureList))
-                    .withSideInputs(featureList)
-                    .withOutputTags(
-                        CreateImageReqest.successTag,
-                        TupleTagList.of(CreateImageReqest.failureTag)))
-            .get(CreateImageReqest.successTag)
+                ParDo.of(new CreateImageReqest(featureList)).withSideInputs(featureList))
             .apply(
                 "Process Image Response",
                 ProcessImageTransform.newBuilder()
                     .setJsonMode(options.getRawJsonMode())
                     .setSelectedColumns(selectedColumnsMap)
                     .build());
-
-    imageResponses
-        .get(VisionApiUtil.successTag)
-        .apply(
-            "BQ Write",
-            BigQueryIO.<KV<String, TableRow>>write()
-                .to(new BQDestination(options.getDatasetName(), options.getVisionApiProjectId()))
-                .withFormatFunction(
-                    element -> {
-                      return element.getValue();
-                    })
-                .ignoreInsertIds()
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+    imageResponses.apply(
+        BigQueryDynamicTransform.newBuilder()
+            .setProjectId(options.getProject())
+            .setDatasetId(options.getDatasetName())
+            .build());
 
     return p.run();
   }

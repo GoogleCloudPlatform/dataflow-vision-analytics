@@ -16,6 +16,7 @@
 
 package com.google.solutions.ml.api.vision.common;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.protobuf.FieldMask;
@@ -25,9 +26,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +36,8 @@ import org.slf4j.LoggerFactory;
  */
 @AutoValue
 public abstract class ProcessImageTransform
-    extends PTransform<PCollection<KV<String, AnnotateImageResponse>>, PCollectionTuple> {
+    extends PTransform<
+        PCollection<KV<String, AnnotateImageResponse>>, PCollection<KV<String, TableRow>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessImageTransform.class);
 
@@ -62,16 +62,12 @@ public abstract class ProcessImageTransform
   }
 
   @Override
-  public PCollectionTuple expand(PCollection<KV<String, AnnotateImageResponse>> imageResponse) {
+  public PCollection<KV<String, TableRow>> expand(
+      PCollection<KV<String, AnnotateImageResponse>> imageResponse) {
 
-    PCollectionTuple output =
-        imageResponse.apply(
-            "FindImageTag",
-            ParDo.of(new ProcessImageResponse(jsonMode(), selectedColumns()))
-                .withSideInputs(selectedColumns())
-                .withOutputTags(
-                    VisionApiUtil.successTag, TupleTagList.of(VisionApiUtil.failureTag)));
+    PCollection<KV<String, TableRow>> outputRow =
+        imageResponse.apply("FindImageTag", ParDo.of(new ProcessImageResponse()));
 
-    return output;
+    return outputRow;
   }
 }

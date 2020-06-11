@@ -1,0 +1,95 @@
+package com.google.solutions.ml.api.vision.common;
+
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@AutoValue
+public abstract class BigQueryDynamicTransform
+    extends PTransform<PCollection<KV<String, TableRow>>, WriteResult> {
+  public static final Logger LOG = LoggerFactory.getLogger(BigQueryDynamicTransform.class);
+
+  public abstract String projectId();
+
+  public abstract String datasetId();
+
+  public static Builder newBuilder() {
+    return new AutoValue_BigQueryDynamicTransform.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setDatasetId(String projectId);
+
+    public abstract Builder setProjectId(String datasetId);
+
+    public abstract BigQueryDynamicTransform build();
+  }
+
+  @Override
+  public WriteResult expand(PCollection<KV<String, TableRow>> input) {
+
+    return input.apply(
+        "BQ Write",
+        BigQueryIO.<KV<String, TableRow>>write()
+            .to(new BQDestination(datasetId(), projectId()))
+            .withFormatFunction(
+                element -> {
+                  return element.getValue();
+                })
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withoutValidation()
+            .ignoreInsertIds()
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  public class BQDestination
+      extends DynamicDestinations<KV<String, TableRow>, KV<String, TableRow>> {
+
+    private String datasetName;
+    private String projectId;
+
+    public BQDestination(String datasetName, String projectId) {
+      this.datasetName = datasetName;
+      this.projectId = projectId;
+    }
+
+    @Override
+    public KV<String, TableRow> getDestination(ValueInSingleWindow<KV<String, TableRow>> element) {
+      String key = element.getValue().getKey();
+      String tableName = String.format("%s:%s.%s", projectId, datasetName, key);
+      LOG.info("Table Name {}", tableName);
+      return KV.of(tableName, element.getValue().getValue());
+    }
+
+    @Override
+    public TableDestination getTable(KV<String, TableRow> destination) {
+      TableDestination dest =
+          new TableDestination(destination.getKey(), "vision api data from dataflow");
+      LOG.info("Table Destination {}", dest.getTableSpec());
+      return dest;
+    }
+
+    @Override
+    public TableSchema getSchema(KV<String, TableRow> destination) {
+
+      switch (destination.getKey()) {
+        case "LABEL_DETECTION":
+          return BigQueryUtils.toTableSchema(Util.entityAnnotation);
+        default:
+          return BigQueryUtils.toTableSchema(Util.entityAnnotation);
+      }
+    }
+  }
+}

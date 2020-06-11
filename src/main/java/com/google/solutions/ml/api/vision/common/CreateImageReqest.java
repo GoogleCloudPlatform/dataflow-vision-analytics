@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,9 +49,10 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
   private PCollectionView<List<Feature>> featureList;
   private ImageAnnotatorClient visionApiClient;
   private final Counter numberOfRequest =
-	        Metrics.counter(CreateImageReqest.class, "NumberOfImageRequest");
+      Metrics.counter(CreateImageReqest.class, "NumberOfImageRequest");
   private final Counter numberOfResponse =
-	        Metrics.counter(CreateImageReqest.class, "NumberOfImageResponse");
+      Metrics.counter(CreateImageReqest.class, "NumberOfImageResponse");
+
   public CreateImageReqest(PCollectionView<List<Feature>> featureList) {
     this.featureList = featureList;
   }
@@ -76,7 +76,7 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-	List<AnnotateImageRequest> requests= new ArrayList<>();
+    List<AnnotateImageRequest> requests = new ArrayList<>();
     List<String> imgList = c.element();
 
     AtomicInteger index = new AtomicInteger(0);
@@ -102,13 +102,13 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
             ErrorMessageBuilder.newBuilder()
                 .setErrorMessage("Error Processing Image Response")
                 .setStackTrace(res.getError().getMessage())
-                .setTimeStamp(VisionApiUtil.getTimeStamp())
+                .setTimeStamp(Util.getTimeStamp())
                 .build()
                 .withTableRow(new TableRow());
-        LOG.error("Error {}",errorBuilder.toString());
+        LOG.error("Error {}", errorBuilder.toString());
         c.output(
             failureTag,
-            KV.of(VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"), errorBuilder.tableRow()));
+            KV.of(Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"), errorBuilder.tableRow()));
       } else {
         String imageName =
             requests.get(index.getAndIncrement()).getImage().getSource().getImageUri();

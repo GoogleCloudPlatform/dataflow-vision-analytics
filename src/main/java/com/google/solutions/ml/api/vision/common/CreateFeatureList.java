@@ -62,20 +62,18 @@ public class CreateFeatureList extends DoFn<Iterable<String>, Feature> {
         .forEach(
             element -> {
               try {
-                c.output(VisionApiUtil.convertJsonToFeature(element.getAsJsonObject().toString()));
+                c.output(Util.convertJsonToFeature(element.getAsJsonObject().toString()));
               } catch (InvalidProtocolBufferException e) {
                 ErrorMessageBuilder errorBuilder =
                     ErrorMessageBuilder.newBuilder()
                         .setErrorMessage(e.getMessage())
                         .setStackTrace(e.getStackTrace().toString())
-                        .setTimeStamp(VisionApiUtil.getTimeStamp())
+                        .setTimeStamp(Util.getTimeStamp())
                         .build()
                         .withTableRow(new TableRow());
                 c.output(
                     failureTag,
-                    KV.of(
-                        VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
-                        errorBuilder.tableRow()));
+                    KV.of(Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"), errorBuilder.tableRow()));
               }
             });
   }

@@ -152,13 +152,13 @@ public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<
       String object = c.element().getAttribute("objectId");
       String eventType = c.element().getAttribute("eventType");
       GcsPath uri = GcsPath.fromComponents(bucket, object);
-      if (eventType.equalsIgnoreCase(VisionApiUtil.ALLOWED_NOTIFICATION_EVENT_TYPE)) {
+      if (eventType.equalsIgnoreCase(Util.ALLOWED_NOTIFICATION_EVENT_TYPE)) {
         String fileName = uri.toString();
-        if (fileName.matches(VisionApiUtil.FILE_PATTERN)) {
+        if (fileName.matches(Util.FILE_PATTERN)) {
           c.output(fileName);
           LOG.info("File Output {}", fileName);
         } else {
-          LOG.warn(VisionApiUtil.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
+          LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
         }
       } else {
         LOG.warn("Event Type Not Supported {}", eventType);

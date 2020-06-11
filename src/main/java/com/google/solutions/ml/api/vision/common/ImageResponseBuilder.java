@@ -15,36 +15,14 @@
  */
 package com.google.solutions.ml.api.vision.common;
 
-import com.google.api.client.json.GenericJson;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.auto.value.AutoValue;
-import com.google.cloud.vision.v1.CropHintsAnnotation;
-import com.google.cloud.vision.v1.EntityAnnotation;
-import com.google.cloud.vision.v1.FaceAnnotation;
-import com.google.cloud.vision.v1.ImageProperties;
-import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
-import com.google.cloud.vision.v1.ProductSearchResults;
-import com.google.cloud.vision.v1.SafeSearchAnnotation;
-import com.google.cloud.vision.v1.TextAnnotation;
-import com.google.cloud.vision.v1.WebDetection;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
-import com.google.protobuf.FieldMask;
-import com.google.protobuf.util.FieldMaskUtil;
-import com.google.protobuf.util.JsonFormat;
-import java.io.IOException;
-import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * ImageResponseBuilder class {@link ImageResponseBuilder} creates a builder pattern for each
  * annotation type by parsing the image response. This class sets up table row based on the
  * annotation response
  */
-@AutoValue
+/*@AutoValue
 public abstract class ImageResponseBuilder {
-  private static final Logger LOG = LoggerFactory.getLogger(ImageResponseBuilder.class);
+ private static final Logger LOG = LoggerFactory.getLogger(ImageResponseBuilder.class);
 
   public abstract String imageName();
 
@@ -254,4 +232,4 @@ public abstract class ImageResponseBuilder {
         .setTableRow(tableRow)
         .build();
   }
-}
+}*/
