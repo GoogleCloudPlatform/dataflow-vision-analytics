@@ -18,6 +18,7 @@ package com.google.solutions.ml.api.vision.common;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.api.client.json.GenericJson;
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.CropHintsAnnotation;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.FaceAnnotation;
@@ -44,13 +45,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +64,7 @@ import org.slf4j.LoggerFactory;
 public class Util {
 
   public static final Logger LOG = LoggerFactory.getLogger(Util.class);
+  private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
   public static final String ALLOWED_NOTIFICATION_EVENT_TYPE = String.valueOf("OBJECT_FINALIZE");
   /** Allowed image extension supported by Vision API */
@@ -86,6 +93,31 @@ public class Util {
           .put("BQ_TABLE_NAME_SAFE_SEARCH_ANNOTATION", "SAFE_SEARCH_ANNOTATION")
           .put("BQ_TABLE_NAME_WEB_DETECTION_ANNOTATION", "WEB_DETECTION")
           .build();
+
+  static {
+    DateTimeFormatter dateTimePart =
+        new DateTimeFormatterBuilder()
+            .appendYear(4, 4)
+            .appendLiteral('-')
+            .appendMonthOfYear(2)
+            .appendLiteral('-')
+            .appendDayOfMonth(2)
+            .appendLiteral(' ')
+            .appendHourOfDay(2)
+            .appendLiteral(':')
+            .appendMinuteOfHour(2)
+            .appendLiteral(':')
+            .appendSecondOfMinute(2)
+            .toFormatter()
+            .withZoneUTC();
+    BIGQUERY_TIMESTAMP_PRINTER =
+        new DateTimeFormatterBuilder()
+            .append(dateTimePart)
+            .appendLiteral('.')
+            .appendFractionOfSecond(3, 3)
+            .appendLiteral(" UTC")
+            .toFormatter();
+  }
 
   public static Feature convertJsonToFeature(String json) throws InvalidProtocolBufferException {
 
@@ -140,7 +172,7 @@ public class Util {
               Schema.Field.of("description", FieldType.STRING).withNullable(true),
               Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
               Schema.Field.of("topicality", FieldType.FLOAT).withNullable(true),
-              // Schema.Field.of("bounding_poly", FieldType.row(boundingPoly)).withNullable(true),
+              Schema.Field.of("bounding_poly", FieldType.row(boundingPoly)).withNullable(true),
               Schema.Field.of("locations", FieldType.array(FieldType.row(latLon)))
                   .withNullable(true),
               Schema.Field.of("properties", FieldType.array(FieldType.row(property)))
@@ -217,7 +249,7 @@ public class Util {
                 annotation.getDescription(),
                 annotation.getScore(),
                 annotation.getTopicality(),
-                // Row.withSchema(boundingPoly).addValues(verticesList, normalizedVerticesList),
+                Row.withSchema(boundingPoly).addValues(verticesList, normalizedVerticesList),
                 Row.withSchema(latLon).addArray(locationList),
                 Row.withSchema(property).addArray(propertyList))
             .build();
@@ -320,5 +352,62 @@ public class Util {
               });
     }
     return dataMap;
+  }
+
+  private static Object fromBeamField(FieldType fieldType, Object fieldValue) {
+    if (fieldValue == null) {
+      if (!fieldType.getNullable()) {
+        throw new IllegalArgumentException("Field is not nullable.");
+      }
+      return null;
+    }
+
+    switch (fieldType.getTypeName()) {
+      case ARRAY:
+      case ITERABLE:
+        FieldType elementType = fieldType.getCollectionElementType();
+        Iterable items = (Iterable) fieldValue;
+        List convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
+        for (Object item : items) {
+          convertedItems.add(fromBeamField(elementType, item));
+        }
+        return convertedItems;
+
+      case ROW:
+        return toTableRow((Row) fieldValue);
+
+      case DATETIME:
+        return ((Instant) fieldValue)
+            .toDateTime(DateTimeZone.UTC)
+            .toString(BIGQUERY_TIMESTAMP_PRINTER);
+
+      case INT16:
+      case INT32:
+      case INT64:
+      case FLOAT:
+      case DOUBLE:
+      case STRING:
+      case BOOLEAN:
+        return fieldValue.toString();
+
+      case DECIMAL:
+        return fieldValue.toString();
+
+      case BYTES:
+        return BaseEncoding.base64().encode((byte[]) fieldValue);
+
+      default:
+        return fieldValue;
+    }
+  }
+
+  public static TableRow toTableRow(Row row) {
+    TableRow output = new TableRow();
+    for (int i = 0; i < row.getFieldCount(); i++) {
+      Object value = row.getValue(i);
+      Field schemaField = row.getSchema().getField(i);
+      output = output.set(schemaField.getName(), fromBeamField(schemaField.getType(), value));
+    }
+    return output;
   }
 }

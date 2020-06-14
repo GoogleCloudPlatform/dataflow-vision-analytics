@@ -23,8 +23,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MapImageFiles extends DoFn<ReadableFile, KV<String, String>> {
-  public static final Logger LOG = LoggerFactory.getLogger(MapImageFiles.class);
+public class ImageFilesMap extends DoFn<ReadableFile, KV<String, String>> {
+  public static final Logger LOG = LoggerFactory.getLogger(ImageFilesMap.class);
 
   public static TupleTag<KV<String, String>> successTag = new TupleTag<KV<String, String>>() {};
   public static TupleTag<KV<String, TableRow>> failureTag = new TupleTag<KV<String, TableRow>>() {};

@@ -30,30 +30,29 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * CreateImageRequest {@link CreateImageReqest} batch the list of images with feature type and
- * create AnnotateImage Request
+ * CreateImageRequest {@link ImageRequestDoFn} batch the list of images with feature type and create
+ * AnnotateImage Request
  */
-public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateImageResponse>> {
-  public static final Logger LOG = LoggerFactory.getLogger(CreateImageReqest.class);
+public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImageResponse>> {
+  public static final Logger LOG = LoggerFactory.getLogger(ImageRequestDoFn.class);
 
   public static TupleTag<KV<String, AnnotateImageResponse>> successTag =
       new TupleTag<KV<String, AnnotateImageResponse>>() {};
   public static TupleTag<KV<String, TableRow>> failureTag = new TupleTag<KV<String, TableRow>>() {};
 
-  private PCollectionView<List<Feature>> featureList;
+  private List<Feature> featureList;
   private ImageAnnotatorClient visionApiClient;
   private final Counter numberOfRequest =
-      Metrics.counter(CreateImageReqest.class, "NumberOfImageRequest");
+      Metrics.counter(ImageRequestDoFn.class, "NumberOfImageRequest");
   private final Counter numberOfResponse =
-      Metrics.counter(CreateImageReqest.class, "NumberOfImageResponse");
+      Metrics.counter(ImageRequestDoFn.class, "NumberOfImageResponse");
 
-  public CreateImageReqest(PCollectionView<List<Feature>> featureList) {
+  public ImageRequestDoFn(List<Feature> featureList) {
     this.featureList = featureList;
   }
 
@@ -80,7 +79,6 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
     List<String> imgList = c.element();
 
     AtomicInteger index = new AtomicInteger(0);
-    List<Feature> features = c.sideInput(featureList);
     imgList.forEach(
         img -> {
           Image image =
@@ -88,7 +86,7 @@ public class CreateImageReqest extends DoFn<List<String>, KV<String, AnnotateIma
                   .setSource(ImageSource.newBuilder().setImageUri(img).build())
                   .build();
           AnnotateImageRequest.Builder request =
-              AnnotateImageRequest.newBuilder().setImage(image).addAllFeatures(features);
+              AnnotateImageRequest.newBuilder().setImage(image).addAllFeatures(featureList);
           requests.add(request.build());
         });
 

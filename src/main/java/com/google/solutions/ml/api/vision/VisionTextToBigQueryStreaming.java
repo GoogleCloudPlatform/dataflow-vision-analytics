@@ -16,11 +16,8 @@
 
 package com.google.solutions.ml.api.vision;
 
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.vision.v1.Feature;
 import com.google.solutions.ml.api.vision.common.BigQueryDynamicTransform;
-import com.google.solutions.ml.api.vision.common.CreateFeatureList;
-import com.google.solutions.ml.api.vision.common.CreateImageReqest;
+import com.google.solutions.ml.api.vision.common.ImageRequestDoFn;
 import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
 import com.google.solutions.ml.api.vision.common.ReadImageTransform;
 import com.google.solutions.ml.api.vision.common.VisionApiPipelineOptions;
@@ -29,10 +26,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,32 +68,22 @@ public class VisionTextToBigQueryStreaming {
                 .setKeyRange(options.getKeyRange())
                 .setSubscriber(options.getSubscriberId())
                 .build());
+    PCollectionTuple imageRequest =
+        imageFiles.apply(
+            "ImageRequest",
+            ParDo.of(new ImageRequestDoFn(options.getFeatures()))
+                .withOutputTags(
+                    ImageRequestDoFn.successTag, TupleTagList.of(ImageRequestDoFn.failureTag)));
 
-    /*
-     * Side input to create the list of features
-     */
-    final PCollectionView<List<Feature>> featureList =
-        imageFiles
-            .apply(
-                "Create Feature List",
-                ParDo.of(new CreateFeatureList(options.getFeatureType()))
-                    .withOutputTags(
-                        CreateFeatureList.successTag,
-                        TupleTagList.of(CreateFeatureList.failureTag)))
-            .get(CreateFeatureList.successTag)
-            .apply(View.asList());
-
-    PCollection<KV<String, TableRow>> imageResponses =
-        imageFiles
-            .apply(
-                "Create Image Request",
-                ParDo.of(new CreateImageReqest(featureList)).withSideInputs(featureList))
-            .apply("Process Image Response", new ProcessImageTransform());
-    imageResponses.apply(
-        BigQueryDynamicTransform.newBuilder()
-            .setProjectId(options.getProject())
-            .setDatasetId(options.getDatasetName())
-            .build());
+    imageRequest
+        .get(ImageRequestDoFn.successTag)
+        .apply("ProcessResponse", new ProcessImageTransform())
+        .apply(
+            "WriteToBq",
+            BigQueryDynamicTransform.newBuilder()
+                .setDatasetId(options.getDatasetName())
+                .setProjectId(options.getVisionApiProjectId())
+                .build());
 
     return p.run();
   }

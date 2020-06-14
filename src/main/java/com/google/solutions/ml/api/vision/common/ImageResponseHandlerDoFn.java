@@ -25,7 +25,6 @@ import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
 import com.google.cloud.vision.v1.ProductSearchResults;
 import com.google.cloud.vision.v1.SafeSearchAnnotation;
 import com.google.cloud.vision.v1.WebDetection;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -35,14 +34,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * ProcessImageResponse {@link ProcessImageResponse} class parses the image response for specific
- * annotation and using image response builder output the table and table row for BigQuery
+ * ProcessImageResponse {@link ImageResponseHandlerDoFn} class parses the image response for
+ * specific annotation and using image response builder output the table and table row for BigQuery
  */
-public class ProcessImageResponse
+public class ImageResponseHandlerDoFn
     extends DoFn<KV<String, AnnotateImageResponse>, KV<String, TableRow>> {
-  public static final Logger LOG = LoggerFactory.getLogger(CreateImageReqest.class);
+  public static final Logger LOG = LoggerFactory.getLogger(ImageRequestDoFn.class);
   private final Counter numberOfAnnotationResponse =
-      Metrics.counter(ProcessImageResponse.class, "NumberOfAnnotationProcessed");
+      Metrics.counter(ImageResponseHandlerDoFn.class, "NumberOfAnnotationProcessed");
 
   @ProcessElement
   public void processElement(ProcessContext c) {
@@ -69,7 +68,7 @@ public class ProcessImageResponse
                       c.output(
                           KV.of(
                               Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
-                              BigQueryUtils.toTableRow(row)));
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "landmarkAnnotations":
@@ -83,7 +82,7 @@ public class ProcessImageResponse
                       c.output(
                           KV.of(
                               Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
-                              BigQueryUtils.toTableRow(row)));
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "logoAnnotations":
@@ -97,7 +96,7 @@ public class ProcessImageResponse
                       c.output(
                           KV.of(
                               Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
-                              BigQueryUtils.toTableRow(row)));
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "faceAnnotations":

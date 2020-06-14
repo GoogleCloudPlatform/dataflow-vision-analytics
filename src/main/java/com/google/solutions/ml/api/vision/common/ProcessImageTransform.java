@@ -40,7 +40,7 @@ public class ProcessImageTransform
       PCollection<KV<String, AnnotateImageResponse>> imageResponse) {
 
     PCollection<KV<String, TableRow>> outputRow =
-        imageResponse.apply("FindImageTag", ParDo.of(new ProcessImageResponse()));
+        imageResponse.apply("FindImageTag", ParDo.of(new ImageResponseHandlerDoFn()));
 
     return outputRow;
   }

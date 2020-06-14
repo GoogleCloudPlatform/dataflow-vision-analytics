@@ -15,6 +15,8 @@
  */
 package com.google.solutions.ml.api.vision.common;
 
+import com.google.cloud.vision.v1.Feature;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.Default;
@@ -72,4 +74,9 @@ public interface VisionApiPipelineOptions extends DataflowPipelineOptions {
   boolean getRawJsonMode();
 
   void setRawJsonMode(boolean mode);
+
+  @Description("Features")
+  List<Feature> getFeatures();
+
+  void setFeatures(List<Feature> value);
 }

@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -86,10 +85,9 @@ public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<
             "Fixed Window",
             Window.<KV<Integer, String>>into(
                     FixedWindows.of(Duration.standardSeconds(windowInterval())))
-                .triggering(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
                 .withAllowedLateness(Duration.ZERO))
-        .apply("BatchRequest", ParDo.of(new BatchRequest(batchSize())));
+        .apply("BatchImages", ParDo.of(new BatchRequestDoFn(batchSize())));
   }
 
   public static class BatchRequest extends DoFn<KV<Integer, String>, List<String>> {
