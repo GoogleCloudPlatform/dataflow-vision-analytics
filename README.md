@@ -1,5 +1,7 @@
 # Processing Large Scale Image Files Using Dataflow and Vision API
-This dataflow streaming pipeline can be used to process large scale image files from GCS and store the results in BigQuery. Stored data can be used for training by using BQ ML in built model or passed as additional input for existing TF model.   
+
+This repo contains a reference implementations for a series of video analytics solutions by using Dataflow & Video AI. The goal is to provide an easy to use end to end solution to process large scale image data by bringing multiple data streams together to drive insight using Vision  AI.
+
 
 # Reference Architecture
 

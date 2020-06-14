@@ -17,16 +17,11 @@
 package com.google.solutions.ml.api.vision.common;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.auto.value.AutoValue;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
-import com.google.protobuf.FieldMask;
-import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,32 +29,11 @@ import org.slf4j.LoggerFactory;
  * ProcessImageTransform class {@link ProcessImageTransform} abstracts the actual image processing
  * from main pipeline so that it can be reused
  */
-@AutoValue
-public abstract class ProcessImageTransform
+public class ProcessImageTransform
     extends PTransform<
         PCollection<KV<String, AnnotateImageResponse>>, PCollection<KV<String, TableRow>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessImageTransform.class);
-
-  @Nullable
-  public abstract PCollectionView<Map<String, FieldMask>> selectedColumns();
-
-  public abstract boolean jsonMode();
-
-  public static Builder newBuilder() {
-    return new AutoValue_ProcessImageTransform.Builder();
-  }
-
-  @AutoValue.Builder
-  public abstract static class Builder {
-
-    public abstract Builder setSelectedColumns(
-        PCollectionView<Map<String, FieldMask>> selectedColumns);
-
-    public abstract Builder setJsonMode(boolean mode);
-
-    public abstract ProcessImageTransform build();
-  }
 
   @Override
   public PCollection<KV<String, TableRow>> expand(

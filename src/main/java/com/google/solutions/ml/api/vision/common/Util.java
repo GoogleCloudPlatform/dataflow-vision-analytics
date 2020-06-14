@@ -76,22 +76,15 @@ public class Util {
 
   public static final Map<String, String> BQ_TABLE_NAME_MAP =
       ImmutableMap.<String, String>builder()
-          .put("BQ_TABLE_NAME_DEFAULT_MODE", "VISION_API_FINDINGS_RAW_JSON")
-          .put("BQ_TABLE_NAME_LABEL_ANNOTATION", "LABEL_DETECTION")
-          .put("BQ_TABLE_NAME_FACE_ANNOTATION", "VISION_API_FINDINGS_FACE_DETECTION")
-          .put("BQ_TABLE_NAME_LANDMARK_ANNOTATION", "VISION_API_FINDINGS_LANDMARK_DETECTION")
-          .put("BQ_TABLE_NAME_LOGO_ANNOTATION", "VISION_API_FINDINGS_LOGO_DETECTION")
-          .put("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION", "VISION_API_FINDINGS_CORP_HINTS_DETECTION")
-          .put("BQ_TABLE_NAME_FULL_TEXT_ANNOTATION", "VISION_API_FINDINGS_FULL_TEXT_DETECTION")
-          .put("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION", "VISION_API_FINDINGS_IMAGE_PROP_DETECTION")
-          .put(
-              "BQ_TABLE_NAME_LOCALIZED_OBJECT_ANNOTATION",
-              "VISION_API_FINDINGS_LOCALIZED_OBJECT_DETECTION")
-          .put("BQ_TABLE_NAME_PRODUCT_SEARCH_RESULT", "VISION_API_FINDINGS_PRODUCT_SEARCH_RESULT")
-          .put("BQ_TABLE_NAME_SAFE_SEARCH_ANNOTATION", "VISION_API_FINDINGS_SAFE_SEARCH_RESULT")
-          .put("BQ_TABLE_NAME_TEXT_ANNOTATION", "VISION_API_FINDINGS_TEXT_DETECTION")
-          .put("BQ_TABLE_NAME_WEB_DETECTION_ANNOTATION", "VISION_API_FINDINGS_WEB_DETECTION")
-          .put("BQ_ERROR_TABLE", "VISION_API_ERROR_TABLE")
+          .put("BQ_TABLE_NAME_ENTITY_ANNOTATION", "ENTITY_ANNOTATION")
+          .put("BQ_TABLE_NAME_FACE_ANNOTATION", "FACE_DETECTION")
+          .put("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION", "CORP_HINTS_ANNOTATION")
+          .put("BQ_TABLE_NAME_FULL_TEXT_ANNOTATION", "TEXT_ANNOTATION")
+          .put("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION", "IMAGE_PROPERTIES")
+          .put("BQ_TABLE_NAME_LOCALIZED_OBJECT_ANNOTATION", "LOCALIZED_OBJECT_ANNOTATION")
+          .put("BQ_TABLE_NAME_PRODUCT_SEARCH_RESULT", "PRODUCT_SEARCH_RESULT")
+          .put("BQ_TABLE_NAME_SAFE_SEARCH_ANNOTATION", "SAFE_SEARCH_ANNOTATION")
+          .put("BQ_TABLE_NAME_WEB_DETECTION_ANNOTATION", "WEB_DETECTION")
           .build();
 
   public static Feature convertJsonToFeature(String json) throws InvalidProtocolBufferException {
@@ -106,13 +99,63 @@ public class Util {
     return feature.build();
   }
 
-  public static Row convertEntityAnnotationProtoToJson(EntityAnnotation annotation)
+  public static final Schema vertic =
+      Stream.of(
+              Schema.Field.of("x", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("y", FieldType.FLOAT).withNullable(true))
+          .collect(toSchema());
+
+  public static final Schema normalizedVertic =
+      Stream.of(
+              Schema.Field.of("x", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("y", FieldType.FLOAT).withNullable(true))
+          .collect(toSchema());
+
+  public static final Schema boundingPoly =
+      Stream.of(
+              Schema.Field.of("vertices", FieldType.array(FieldType.row(vertic)))
+                  .withNullable(true),
+              Schema.Field.of(
+                      "normalizedVertices", FieldType.array(FieldType.row(normalizedVertic)))
+                  .withNullable(true))
+          .collect(toSchema());
+
+  public static final Schema latLon =
+      Stream.of(
+              Schema.Field.of("latitude", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("longitude", FieldType.FLOAT).withNullable(true))
+          .collect(toSchema());
+
+  public static final Schema property =
+      Stream.of(
+              Schema.Field.of("name", FieldType.STRING).withNullable(true),
+              Schema.Field.of("value", FieldType.STRING).withNullable(true),
+              Schema.Field.of("unit64_value", FieldType.INT64).withNullable(true))
+          .collect(toSchema());
+  public static final Schema entityAnnotation =
+      Stream.of(
+              Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
+              Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("mid", FieldType.STRING).withNullable(true),
+              Schema.Field.of("description", FieldType.STRING).withNullable(true),
+              Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("topicality", FieldType.FLOAT).withNullable(true),
+              // Schema.Field.of("bounding_poly", FieldType.row(boundingPoly)).withNullable(true),
+              Schema.Field.of("locations", FieldType.array(FieldType.row(latLon)))
+                  .withNullable(true),
+              Schema.Field.of("properties", FieldType.array(FieldType.row(property)))
+                  .withNullable(true))
+          .collect(toSchema());
+
+  public static Row convertEntityAnnotationProtoToJson(
+      String imageName, EntityAnnotation annotation, Feature feature)
       throws JsonSyntaxException, InvalidProtocolBufferException {
     List<Row> verticesList = new ArrayList<>();
     List<Row> normalizedVerticesList = new ArrayList<>();
     List<Row> locationList = new ArrayList<>();
     List<Row> propertyList = new ArrayList<>();
     if (annotation.hasBoundingPoly()) {
+      LOG.info("Bounding poly found");
       annotation
           .getBoundingPoly()
           .getVerticesList()
@@ -127,10 +170,14 @@ public class Util {
           .forEach(
               vertics -> {
                 normalizedVerticesList.add(
-                    Row.withSchema(vertic).addValues(vertics.getX(), vertics.getY()).build());
+                    Row.withSchema(normalizedVertic)
+                        .addValues(vertics.getX(), vertics.getY())
+                        .build());
               });
     }
     if (annotation.getLocationsCount() > 0) {
+      LOG.info("location found");
+
       annotation
           .getLocationsList()
           .forEach(
@@ -142,6 +189,8 @@ public class Util {
     }
 
     if (annotation.getPropertiesCount() > 0) {
+      LOG.info("properties found");
+
       annotation
           .getPropertiesList()
           .forEach(
@@ -152,17 +201,27 @@ public class Util {
                         .build());
               });
     }
+    LOG.info(
+        "Finalizing Row List vertics {} normalized vertics {} locations {} properties {}",
+        verticesList.size(),
+        normalizedVerticesList.size(),
+        locationList.size(),
+        propertyList.size());
 
-    return Row.withSchema(entityAnnotation)
-        .addValues(
-            annotation.getMid(),
-            annotation.getDescription(),
-            annotation.getScore(),
-            annotation.getTopicality(),
-            Row.withSchema(boundingPoly).addValues(verticesList, normalizedVerticesList),
-            Row.withSchema(latLon).addArray(locationList),
-            Row.withSchema(property).addArray(propertyList))
-        .build();
+    Row row =
+        Row.withSchema(entityAnnotation)
+            .addValues(
+                imageName,
+                feature.getType().toString(),
+                annotation.getMid(),
+                annotation.getDescription(),
+                annotation.getScore(),
+                annotation.getTopicality(),
+                // Row.withSchema(boundingPoly).addValues(verticesList, normalizedVerticesList),
+                Row.withSchema(latLon).addArray(locationList),
+                Row.withSchema(property).addArray(propertyList))
+            .build();
+    return row;
   }
 
   public static GenericJson convertFaceAnnotationProtoToJson(FaceAnnotation annotation)
@@ -262,50 +321,4 @@ public class Util {
     }
     return dataMap;
   }
-
-  public static final Schema vertic =
-      Stream.of(
-              Schema.Field.of("x", FieldType.DOUBLE).withNullable(true),
-              Schema.Field.of("y", FieldType.DOUBLE).withNullable(true))
-          .collect(toSchema());
-
-  public static final Schema normalizedVertic =
-      Stream.of(
-              Schema.Field.of("x", FieldType.DOUBLE).withNullable(true),
-              Schema.Field.of("y", FieldType.DOUBLE).withNullable(true))
-          .collect(toSchema());
-
-  public static final Schema boundingPoly =
-      Stream.of(
-              Schema.Field.of("vertices", FieldType.array(FieldType.row(vertic)))
-                  .withNullable(true),
-              Schema.Field.of(
-                      "normalizedVertices", FieldType.array(FieldType.row(normalizedVertic)))
-                  .withNullable(true))
-          .collect(toSchema());
-
-  public static final Schema latLon =
-      Stream.of(
-              Schema.Field.of("latitude", FieldType.DOUBLE).withNullable(true),
-              Schema.Field.of("longitude", FieldType.DOUBLE).withNullable(true))
-          .collect(toSchema());
-
-  public static final Schema property =
-      Stream.of(
-              Schema.Field.of("name", FieldType.STRING).withNullable(true),
-              Schema.Field.of("value", FieldType.STRING).withNullable(true),
-              Schema.Field.of("unit64_value", FieldType.INT64).withNullable(true))
-          .collect(toSchema());
-  public static final Schema entityAnnotation =
-      Stream.of(
-              Schema.Field.of("mid", FieldType.STRING).withNullable(true),
-              Schema.Field.of("description", FieldType.STRING).withNullable(true),
-              Schema.Field.of("score", FieldType.DOUBLE).withNullable(true),
-              Schema.Field.of("topicality", FieldType.DOUBLE).withNullable(true),
-              Schema.Field.of("bounding_poly", FieldType.row(boundingPoly)).withNullable(true),
-              Schema.Field.of("locations", FieldType.array(FieldType.row(latLon)))
-                  .withNullable(true),
-              Schema.Field.of("properties", FieldType.array(FieldType.row(property)))
-                  .withNullable(true))
-          .collect(toSchema());
 }

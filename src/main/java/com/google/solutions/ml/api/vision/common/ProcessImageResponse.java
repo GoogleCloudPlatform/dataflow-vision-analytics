@@ -19,6 +19,8 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.FaceAnnotation;
+import com.google.cloud.vision.v1.Feature;
+import com.google.cloud.vision.v1.Feature.Type;
 import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
 import com.google.cloud.vision.v1.ProductSearchResults;
 import com.google.cloud.vision.v1.SafeSearchAnnotation;
@@ -58,31 +60,43 @@ public class ProcessImageResponse
                     numberOfAnnotationResponse.inc(imageResponse.getLabelAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLabelAnnotationsList()) {
 
-                      Row row = Util.convertEntityAnnotationProtoToJson(annotation);
+                      Row row =
+                          Util.convertEntityAnnotationProtoToJson(
+                              imageName,
+                              annotation,
+                              Feature.newBuilder().setType(Type.LABEL_DETECTION).build());
+                      LOG.info("Row {}", row.toString());
                       c.output(
                           KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION"),
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
                               BigQueryUtils.toTableRow(row)));
                     }
                     break;
                   case "landmarkAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLandmarkAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLandmarkAnnotationsList()) {
-                      Row row = Util.convertEntityAnnotationProtoToJson(annotation);
-
+                      Row row =
+                          Util.convertEntityAnnotationProtoToJson(
+                              imageName,
+                              annotation,
+                              Feature.newBuilder().setType(Type.LANDMARK_DETECTION).build());
                       c.output(
                           KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION"),
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
                               BigQueryUtils.toTableRow(row)));
                     }
                     break;
                   case "logoAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLogoAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLogoAnnotationsList()) {
-                      Row row = Util.convertEntityAnnotationProtoToJson(annotation);
+                      Row row =
+                          Util.convertEntityAnnotationProtoToJson(
+                              imageName,
+                              annotation,
+                              Feature.newBuilder().setType(Type.LOGO_DETECTION).build());
                       c.output(
                           KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION"),
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
                               BigQueryUtils.toTableRow(row)));
                     }
                     break;
@@ -210,14 +224,7 @@ public class ProcessImageResponse
                 }
               } catch (Exception e) {
                 LOG.error("Select Column mode exception {}", e.getMessage());
-                ErrorMessageBuilder errorBuilder =
-                    ErrorMessageBuilder.newBuilder()
-                        .setErrorMessage(e.getMessage())
-                        .setStackTrace(e.getStackTrace().toString())
-                        .setFileName(imageName)
-                        .setTimeStamp(Util.getTimeStamp())
-                        .build()
-                        .withTableRow(new TableRow());
+                // e.printStackTrace();
               }
             });
   }
