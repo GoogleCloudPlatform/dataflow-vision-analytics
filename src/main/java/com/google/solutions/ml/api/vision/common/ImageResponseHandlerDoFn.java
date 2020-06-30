@@ -19,8 +19,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.FaceAnnotation;
-import com.google.cloud.vision.v1.Feature;
-import com.google.cloud.vision.v1.Feature.Type;
 import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
 import com.google.cloud.vision.v1.ProductSearchResults;
 import com.google.cloud.vision.v1.SafeSearchAnnotation;
@@ -59,44 +57,37 @@ public class ImageResponseHandlerDoFn
                     numberOfAnnotationResponse.inc(imageResponse.getLabelAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLabelAnnotationsList()) {
 
-                      Row row =
-                          Util.convertEntityAnnotationProtoToJson(
-                              imageName,
-                              annotation,
-                              Feature.newBuilder().setType(Type.LABEL_DETECTION).build());
-                      LOG.info("Row {}", row.toString());
+                      Row row = Util.transformLabelAnnotations(imageName, annotation);
                       c.output(
                           KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION"),
                               Util.toTableRow(row)));
                     }
                     break;
                   case "landmarkAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLandmarkAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLandmarkAnnotationsList()) {
-                      Row row =
-                          Util.convertEntityAnnotationProtoToJson(
-                              imageName,
-                              annotation,
-                              Feature.newBuilder().setType(Type.LANDMARK_DETECTION).build());
+                      Row row = Util.transformLandmarkAnnotations(imageName, annotation);
                       c.output(
                           KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LANDMARK_ANNOTATION"),
                               Util.toTableRow(row)));
                     }
                     break;
                   case "logoAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLogoAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLogoAnnotationsList()) {
-                      Row row =
-                          Util.convertEntityAnnotationProtoToJson(
-                              imageName,
-                              annotation,
-                              Feature.newBuilder().setType(Type.LOGO_DETECTION).build());
-                      c.output(
-                          KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
-                              Util.toTableRow(row)));
+                      //                      Row row =
+                      //                          Util.convertEntityAnnotationProtoToJson(
+                      //                              imageName,
+                      //                              annotation,
+                      //
+                      // Feature.newBuilder().setType(Type.LOGO_DETECTION).build());
+                      //                      c.output(
+                      //                          KV.of(
+                      //
+                      // Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
+                      //                              Util.toTableRow(row)));
                     }
                     break;
                   case "faceAnnotations":
@@ -223,7 +214,7 @@ public class ImageResponseHandlerDoFn
                 }
               } catch (Exception e) {
                 LOG.error("Select Column mode exception {}", e.getMessage());
-                // e.printStackTrace();
+                e.printStackTrace();
               }
             });
   }

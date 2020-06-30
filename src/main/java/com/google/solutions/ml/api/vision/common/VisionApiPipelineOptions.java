@@ -17,7 +17,6 @@ package com.google.solutions.ml.api.vision.common;
 
 import com.google.cloud.vision.v1.Feature;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -48,13 +47,7 @@ public interface VisionApiPipelineOptions extends DataflowPipelineOptions {
 
   void setWindowInterval(Integer value);
 
-  @Description(
-      "List of features to be included seperated by comma(e.g. FACE_DETECTION,LANDMARK_DETECTION ")
-  String getFeatureType();
-
-  void setFeatureType(String value);
-
-  @Description("Big Query data set must exist before the pipeline runs (e.g. pii-dataset")
+  @Description("Big Query dataset")
   String getDatasetName();
 
   void setDatasetName(String value);
@@ -64,19 +57,8 @@ public interface VisionApiPipelineOptions extends DataflowPipelineOptions {
 
   void setVisionApiProjectId(String value);
 
-  @Description("Selected Cloumns from API fields for BigQuery Table")
-  String getSelectedColumns();
-
-  void setSelectedColumns(@Nullable String value);
-
-  @Description("BigQuery Storage Mode")
-  @Default.Boolean(true)
-  boolean getRawJsonMode();
-
-  void setRawJsonMode(boolean mode);
-
   @Description("Features")
-  List<Feature> getFeatures();
+  List<Feature.Type> getFeatures();
 
-  void setFeatures(List<Feature> value);
+  void setFeatures(List<Feature.Type> value);
 }

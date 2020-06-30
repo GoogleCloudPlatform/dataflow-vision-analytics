@@ -48,10 +48,6 @@ public class VisionTextToBigQueryStreaming {
     VisionApiPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(VisionApiPipelineOptions.class);
 
-    /** If selected columns parameter exist, setting up default mode to false */
-    if (options.getSelectedColumns() != null) {
-      options.setRawJsonMode(false);
-    }
     run(options);
   }
 
@@ -68,6 +64,7 @@ public class VisionTextToBigQueryStreaming {
                 .setKeyRange(options.getKeyRange())
                 .setSubscriber(options.getSubscriberId())
                 .build());
+
     PCollectionTuple imageRequest =
         imageFiles.apply(
             "ImageRequest",

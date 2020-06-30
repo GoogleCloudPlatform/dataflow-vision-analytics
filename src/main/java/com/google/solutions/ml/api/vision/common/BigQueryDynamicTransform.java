@@ -98,13 +98,24 @@ public abstract class BigQueryDynamicTransform
 
     @Override
     public TableSchema getSchema(KV<String, TableRow> destination) {
+      TableSchema schema;
+      LOG.info("Key {}", destination.getKey());
+      String key = destination.getKey().split("\\.")[1];
+      LOG.info("Table schema key {}", key);
 
-      switch (destination.getKey()) {
-        case "ENTITY_ANNOTATION":
-          return BigQueryUtils.toTableSchema(Util.entityAnnotation);
+      switch (key) {
+        case "LABEL_ANNOTATION":
+          schema = BigQueryUtils.toTableSchema(Util.labelAnnotationSchema);
+          break;
+        case "LANDMARK_ANNOTATION":
+          schema = BigQueryUtils.toTableSchema(Util.landmarkAnnotationSchema);
+          break;
         default:
-          return BigQueryUtils.toTableSchema(Util.entityAnnotation);
+          schema = BigQueryUtils.toTableSchema(Util.labelAnnotationSchema);
+          break;
       }
+      LOG.info("Schema {} ", schema.toString());
+      return schema;
     }
   }
 }

@@ -45,15 +45,18 @@ public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImag
       new TupleTag<KV<String, AnnotateImageResponse>>() {};
   public static TupleTag<KV<String, TableRow>> failureTag = new TupleTag<KV<String, TableRow>>() {};
 
-  private List<Feature> featureList;
+  private List<Feature> featureList = new ArrayList<>();
   private ImageAnnotatorClient visionApiClient;
   private final Counter numberOfRequest =
       Metrics.counter(ImageRequestDoFn.class, "NumberOfImageRequest");
   private final Counter numberOfResponse =
       Metrics.counter(ImageRequestDoFn.class, "NumberOfImageResponse");
 
-  public ImageRequestDoFn(List<Feature> featureList) {
-    this.featureList = featureList;
+  public ImageRequestDoFn(List<Feature.Type> featureTypes) {
+    featureTypes.forEach(
+        type -> {
+          featureList.add(Feature.newBuilder().setType(type).build());
+        });
   }
 
   @StartBundle

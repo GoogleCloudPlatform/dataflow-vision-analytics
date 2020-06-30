@@ -84,6 +84,8 @@ public class Util {
   public static final Map<String, String> BQ_TABLE_NAME_MAP =
       ImmutableMap.<String, String>builder()
           .put("BQ_TABLE_NAME_ENTITY_ANNOTATION", "ENTITY_ANNOTATION")
+          .put("BQ_TABLE_NAME_LABEL_ANNOTATION", "LABEL_ANNOTATION")
+          .put("BQ_TABLE_NAME_LANDMARK_ANNOTATION", "LANDMARK_ANNOTATION")
           .put("BQ_TABLE_NAME_FACE_ANNOTATION", "FACE_DETECTION")
           .put("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION", "CORP_HINTS_ANNOTATION")
           .put("BQ_TABLE_NAME_FULL_TEXT_ANNOTATION", "TEXT_ANNOTATION")
@@ -131,128 +133,117 @@ public class Util {
     return feature.build();
   }
 
-  public static final Schema vertic =
+  public static final Schema verticSchema =
       Stream.of(
-              Schema.Field.of("x", FieldType.FLOAT).withNullable(true),
-              Schema.Field.of("y", FieldType.FLOAT).withNullable(true))
+              Schema.Field.of("x", FieldType.INT32).withNullable(true),
+              Schema.Field.of("y", FieldType.INT32).withNullable(true))
           .collect(toSchema());
 
-  public static final Schema normalizedVertic =
-      Stream.of(
-              Schema.Field.of("x", FieldType.FLOAT).withNullable(true),
-              Schema.Field.of("y", FieldType.FLOAT).withNullable(true))
-          .collect(toSchema());
+  //  public static final Schema verticesSchema =
+  //      Stream.of(
+  //              Schema.Field.of("vertic", FieldType.array(FieldType.row(verticSchema)))
+  //                  .withNullable(true))
+  //          .collect(toSchema());
 
-  public static final Schema boundingPoly =
+  public static final Schema boundingPolySchema =
       Stream.of(
-              Schema.Field.of("vertices", FieldType.array(FieldType.row(vertic)))
-                  .withNullable(true),
-              Schema.Field.of(
-                      "normalizedVertices", FieldType.array(FieldType.row(normalizedVertic)))
+              Schema.Field.of("vertices", FieldType.array(FieldType.row(verticSchema)))
                   .withNullable(true))
           .collect(toSchema());
 
-  public static final Schema latLon =
+  public static final Schema latLonSchema =
       Stream.of(
-              Schema.Field.of("latitude", FieldType.FLOAT).withNullable(true),
-              Schema.Field.of("longitude", FieldType.FLOAT).withNullable(true))
+              Schema.Field.of("latitude", FieldType.DOUBLE).withNullable(true),
+              Schema.Field.of("longitude", FieldType.DOUBLE).withNullable(true))
           .collect(toSchema());
 
-  public static final Schema property =
-      Stream.of(
-              Schema.Field.of("name", FieldType.STRING).withNullable(true),
-              Schema.Field.of("value", FieldType.STRING).withNullable(true),
-              Schema.Field.of("unit64_value", FieldType.INT64).withNullable(true))
+  //  public static final Schema locationsSchema =
+  //		  Stream.of(
+  //	              Schema.Field.of("latLon", FieldType.array(FieldType.row(latLonSchema)))
+  //	                  .withNullable(true))
+  //	          .collect(toSchema());
+  public static final Schema locationSchema =
+      Stream.of(Schema.Field.of("latLon", FieldType.row(latLonSchema)).withNullable(true))
           .collect(toSchema());
-  public static final Schema entityAnnotation =
+
+  public static final Schema labelAnnotationSchema =
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
               Schema.Field.of("mid", FieldType.STRING).withNullable(true),
               Schema.Field.of("description", FieldType.STRING).withNullable(true),
               Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
-              Schema.Field.of("topicality", FieldType.FLOAT).withNullable(true),
-              Schema.Field.of("bounding_poly", FieldType.row(boundingPoly)).withNullable(true),
-              Schema.Field.of("locations", FieldType.array(FieldType.row(latLon)))
-                  .withNullable(true),
-              Schema.Field.of("properties", FieldType.array(FieldType.row(property)))
+              Schema.Field.of("topicality", FieldType.FLOAT).withNullable(true))
+          .collect(toSchema());
+  public static final Schema landmarkAnnotationSchema =
+      Stream.of(
+              Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
+              Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("mid", FieldType.STRING).withNullable(true),
+              Schema.Field.of("description", FieldType.STRING).withNullable(true),
+              Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true),
+              Schema.Field.of("locations", FieldType.array(FieldType.row(locationSchema)))
                   .withNullable(true))
           .collect(toSchema());
 
-  public static Row convertEntityAnnotationProtoToJson(
-      String imageName, EntityAnnotation annotation, Feature feature)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
+  public static Row transformLabelAnnotations(String imageName, EntityAnnotation annotation) {
+    Row row =
+        Row.withSchema(labelAnnotationSchema)
+            .addValues(
+                imageName,
+                "label_annotation",
+                annotation.getMid(),
+                annotation.getDescription(),
+                annotation.getScore(),
+                annotation.getTopicality())
+            .build();
+    LOG.info("Row {}", row.toString());
+    return row;
+  }
+
+  public static Row transformLandmarkAnnotations(String imageName, EntityAnnotation annotation) {
     List<Row> verticesList = new ArrayList<>();
-    List<Row> normalizedVerticesList = new ArrayList<>();
     List<Row> locationList = new ArrayList<>();
-    List<Row> propertyList = new ArrayList<>();
+
     if (annotation.hasBoundingPoly()) {
-      LOG.info("Bounding poly found");
+
       annotation
           .getBoundingPoly()
           .getVerticesList()
           .forEach(
               vertics -> {
                 verticesList.add(
-                    Row.withSchema(vertic).addValues(vertics.getX(), vertics.getY()).build());
-              });
-      annotation
-          .getBoundingPoly()
-          .getNormalizedVerticesList()
-          .forEach(
-              vertics -> {
-                normalizedVerticesList.add(
-                    Row.withSchema(normalizedVertic)
-                        .addValues(vertics.getX(), vertics.getY())
-                        .build());
+                    Row.withSchema(verticSchema).addValues(vertics.getX(), vertics.getY()).build());
               });
     }
-    if (annotation.getLocationsCount() > 0) {
-      LOG.info("location found");
 
+    if (annotation.getLocationsCount() > 0) {
       annotation
           .getLocationsList()
           .forEach(
               location -> {
                 double latitude = location.getLatLng().getLatitude();
                 double longitude = location.getLatLng().getLongitude();
-                locationList.add(Row.withSchema(latLon).addValues(latitude, longitude).build());
+                locationList.add(
+                    Row.withSchema(latLonSchema).addValues(latitude, longitude).build());
               });
     }
-
-    if (annotation.getPropertiesCount() > 0) {
-      LOG.info("properties found");
-
-      annotation
-          .getPropertiesList()
-          .forEach(
-              prop -> {
-                propertyList.add(
-                    Row.withSchema(property)
-                        .addValues(prop.getName(), prop.getValue(), prop.getUint64Value())
-                        .build());
-              });
-    }
-    LOG.info(
-        "Finalizing Row List vertics {} normalized vertics {} locations {} properties {}",
-        verticesList.size(),
-        normalizedVerticesList.size(),
-        locationList.size(),
-        propertyList.size());
 
     Row row =
-        Row.withSchema(entityAnnotation)
+        Row.withSchema(landmarkAnnotationSchema)
             .addValues(
                 imageName,
-                feature.getType().toString(),
+                "landmark_annotation",
                 annotation.getMid(),
                 annotation.getDescription(),
                 annotation.getScore(),
-                annotation.getTopicality(),
-                Row.withSchema(boundingPoly).addValues(verticesList, normalizedVerticesList),
-                Row.withSchema(latLon).addArray(locationList),
-                Row.withSchema(property).addArray(propertyList))
-            .build();
+                verticesList,
+                Row.withSchema(locationSchema).addArray(locationList).build()).build();
+
+          
+
+    LOG.info("Row {}", row.toString());
     return row;
   }
 

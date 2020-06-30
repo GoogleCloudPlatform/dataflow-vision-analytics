@@ -13,6 +13,7 @@ import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +30,7 @@ public class BatchRequestDoFn extends DoFn<KV<Integer, String>, List<String>> {
   private final StateSpec<BagState<String>> elementsBag = StateSpecs.bag();
 
   @TimerId("eventTimer")
-  private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+  private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
   @ProcessElement
   public void process(
@@ -38,7 +39,7 @@ public class BatchRequestDoFn extends DoFn<KV<Integer, String>, List<String>> {
       @TimerId("eventTimer") Timer eventTimer,
       BoundedWindow w) {
     elementsBag.add(element.getValue());
-    eventTimer.set(w.maxTimestamp());
+    eventTimer.offset(Duration.standardSeconds(1)).setRelative();
   }
 
   @OnTimer("eventTimer")

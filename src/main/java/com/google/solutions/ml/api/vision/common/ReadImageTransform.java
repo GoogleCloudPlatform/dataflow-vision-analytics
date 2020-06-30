@@ -16,31 +16,17 @@
 package com.google.solutions.ml.api.vision.common;
 
 import com.google.auto.value.AutoValue;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
-import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,66 +67,7 @@ public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<
             PubsubIO.readMessagesWithAttributes().fromSubscription(subscriber()))
         .apply("ConvertToGCSUri", ParDo.of(new MapPubSubMessage()))
         .apply("AddRandomKey", WithKeys.of(new Random().nextInt(keyRange())))
-        .apply(
-            "Fixed Window",
-            Window.<KV<Integer, String>>into(
-                    FixedWindows.of(Duration.standardSeconds(windowInterval())))
-                .discardingFiredPanes()
-                .withAllowedLateness(Duration.ZERO))
         .apply("BatchImages", ParDo.of(new BatchRequestDoFn(batchSize())));
-  }
-
-  public static class BatchRequest extends DoFn<KV<Integer, String>, List<String>> {
-    private Integer batchSize;
-
-    public BatchRequest(Integer batchSize) {
-      this.batchSize = batchSize;
-    }
-
-    @StateId("elementsBag")
-    private final StateSpec<BagState<String>> elementsBag = StateSpecs.bag();
-
-    @TimerId("eventTimer")
-    private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-    @ProcessElement
-    public void process(
-        @Element KV<Integer, String> element,
-        @StateId("elementsBag") BagState<String> elementsBag,
-        @TimerId("eventTimer") Timer eventTimer,
-        BoundedWindow w) {
-      elementsBag.add(element.getValue());
-      eventTimer.set(w.maxTimestamp());
-    }
-
-    @OnTimer("eventTimer")
-    public void onTimer(
-        @StateId("elementsBag") BagState<String> elementsBag, OutputReceiver<List<String>> output) {
-      AtomicInteger bufferCount = new AtomicInteger();
-      List<String> rows = new ArrayList<>();
-      elementsBag
-          .read()
-          .forEach(
-              element -> {
-                boolean clearBuffer = (bufferCount.intValue() == batchSize.intValue());
-                if (clearBuffer) {
-                  LOG.info("Clear Buffer {}", rows.size());
-                  output.output(rows);
-                  rows.clear();
-                  bufferCount.set(0);
-                  rows.add(element);
-                  bufferCount.getAndAdd(1);
-
-                } else {
-                  rows.add(element);
-                  bufferCount.getAndAdd(1);
-                }
-              });
-      if (!rows.isEmpty()) {
-        LOG.info("Remaining rows {}", rows.size());
-        output.output(rows);
-      }
-    }
   }
 
   public class MapPubSubMessage extends DoFn<PubsubMessage, String> {
