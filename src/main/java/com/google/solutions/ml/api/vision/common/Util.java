@@ -65,7 +65,7 @@ public class Util {
           .put("BQ_TABLE_NAME_LABEL_ANNOTATION", "LABEL_ANNOTATION")
           .put("BQ_TABLE_NAME_LANDMARK_ANNOTATION", "LANDMARK_ANNOTATION")
           .put("BQ_TABLE_NAME_FACE_ANNOTATION", "FACE_ANNOTATION")
-          .put("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION", "CORP_HINTS_ANNOTATION")
+          .put("BQ_TABLE_NAME_CROP_HINTS_ANNOTATION", "CROP_HINTS_ANNOTATION")
           .put("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION", "IMAGE_PROPERTIES")
           .build();
 
@@ -101,16 +101,22 @@ public class Util {
           .collect(toSchema());
   public static final Schema colorSchema =
       Stream.of(
-              Schema.Field.of("red", FieldType.INT32).withNullable(true),
-              Schema.Field.of("green", FieldType.INT32).withNullable(true),
-              Schema.Field.of("blue", FieldType.INT32).withNullable(true))
+              Schema.Field.of("red", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("green", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("blue", FieldType.FLOAT).withNullable(true))
           .collect(toSchema());
-  public static final Schema colorsSchema =
+  public static final Schema colorInfoSchema =
       Stream.of(
-              Schema.Field.of("score", FieldType.INT32).withNullable(true),
-              Schema.Field.of("pixelFraction", FieldType.INT32).withNullable(true),
+              Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("pixelFraction", FieldType.FLOAT).withNullable(true),
               Schema.Field.of("color", FieldType.row(colorSchema)).withNullable(true))
           .collect(toSchema());
+  public static final Schema colorListSchema =
+      Stream.of(
+              Schema.Field.of("colors", FieldType.array(FieldType.row(colorInfoSchema)))
+                  .withNullable(true))
+          .collect(toSchema());
+
   public static final Schema positionSchema =
       Stream.of(
               Schema.Field.of("x", FieldType.INT32).withNullable(true),
@@ -175,7 +181,7 @@ public class Util {
               Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
               Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true))
           .collect(toSchema());
-  public static final Schema corpHintsAnnotationSchema =
+  public static final Schema cropHintsAnnotationSchema =
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
@@ -198,7 +204,7 @@ public class Util {
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
-              Schema.Field.of("dominantColors", FieldType.row(colorsSchema)).withNullable(true))
+              Schema.Field.of("dominantColors", FieldType.row(colorListSchema)).withNullable(true))
           .collect(toSchema());
 
   public static Row transformLabelAnnotations(String imageName, EntityAnnotation annotation) {
@@ -273,10 +279,10 @@ public class Util {
     return row;
   }
 
-  public static Row transformCorpHintsAnnotations(String imageName, CropHint annotation) {
+  public static Row transformCropHintsAnnotations(String imageName, CropHint annotation) {
 
     Row row =
-        Row.withSchema(corpHintsAnnotationSchema)
+        Row.withSchema(cropHintsAnnotationSchema)
             .addValues(
                 imageName,
                 "corp_hints",
@@ -286,29 +292,33 @@ public class Util {
                     .addValue(checkBoundingPolyForCorpHints(annotation))
                     .build())
             .build();
-    LOG.info("Row {}", row.toString());
+    //LOG.info("Row {}", row.toString());
     return row;
   }
 
   public static Row transformImagePropertiesAnnotations(
       String imageName, ImageProperties annotation) {
+
     Row row =
         Row.withSchema(imagePropertiesAnnotationSchema)
             .addValues(
                 imageName,
                 "image_properties",
-                (annotation.hasDominantColors())
-                    ? checkDominantColorsForImageProperties(annotation.getDominantColors())
-                    : null)
+                Row.withSchema(colorListSchema)
+                    .addValues(
+                        (annotation.hasDominantColors())
+                            ? checkDominantColorsForImageProperties(annotation.getDominantColors())
+                            : null)
+                    .build())
             .build();
 
-    LOG.info("Row {}", row.toString());
+    //LOG.info("Row {}", row.toString());
     return row;
   }
 
   private static List<Row> checkDominantColorsForImageProperties(
       DominantColorsAnnotation annotation) {
-    List<Row> colors = new ArrayList<>();
+    List<Row> colorInfo = new ArrayList<>();
     annotation
         .getColorsList()
         .forEach(
@@ -319,10 +329,11 @@ public class Util {
               float score = color.getScore();
               float pixelFraction = color.getPixelFraction();
               Row c = Row.withSchema(colorSchema).addValues(red, green, blue).build();
-              colors.add(Row.withSchema(colorsSchema).addValues(score, pixelFraction, c).build());
+              colorInfo.add(
+                  Row.withSchema(colorInfoSchema).addValues(score, pixelFraction, c).build());
             });
 
-    return colors;
+    return colorInfo;
   }
 
   private static List<Row> checkBoundingPolyForCorpHints(CropHint corphint) {

@@ -96,10 +96,10 @@ public class ImageResponseHandlerDoFn
                     if (imageResponse.hasCropHintsAnnotation()) {
                       CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
-                        Row row = Util.transformCorpHintsAnnotations(imageName, crophint);
+                        Row row = Util.transformCropHintsAnnotations(imageName, crophint);
                         c.output(
                             KV.of(
-                                Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION"),
+                                Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
                                 Util.toTableRow(row)));
                       }
                     }
@@ -118,10 +118,10 @@ public class ImageResponseHandlerDoFn
                     if (imageResponse.hasCropHintsAnnotation()) {
                       CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
-                        Row row = Util.transformCorpHintsAnnotations(imageName, crophint);
+                        Row row = Util.transformCropHintsAnnotations(imageName, crophint);
                         c.output(
                             KV.of(
-                                Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION"),
+                                Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
                                 Util.toTableRow(row)));
                       }
                     }
@@ -137,6 +137,7 @@ public class ImageResponseHandlerDoFn
                 }
               } catch (Exception e) {
                 LOG.error("Error processing response", e.getMessage());
+                e.printStackTrace();
               }
             });
   }

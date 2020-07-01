@@ -100,7 +100,7 @@ public abstract class BigQueryDynamicTransform
     public TableSchema getSchema(KV<String, TableRow> destination) {
       TableSchema schema;
       String key = destination.getKey().split("\\.")[1];
-
+      LOG.debug("Table Key {}", key);
       switch (key) {
         case "LABEL_ANNOTATION":
           schema = BigQueryUtils.toTableSchema(Util.labelAnnotationSchema);
@@ -108,11 +108,23 @@ public abstract class BigQueryDynamicTransform
         case "LANDMARK_ANNOTATION":
           schema = BigQueryUtils.toTableSchema(Util.landmarkAnnotationSchema);
           break;
+        case "LOGO_ANNOTATION":
+          schema = BigQueryUtils.toTableSchema(Util.logoAnnotationSchema);
+          break;
+        case "FACE_ANNOTATION":
+          schema = BigQueryUtils.toTableSchema(Util.faceDetectionAnnotationSchema);
+          break;
+        case "CROP_HINTS_ANNOTATION":
+          schema = BigQueryUtils.toTableSchema(Util.cropHintsAnnotationSchema);
+          break;
+        case "IMAGE_PROPERTIES":
+          schema = BigQueryUtils.toTableSchema(Util.imagePropertiesAnnotationSchema);
+          break;
         default:
           schema = BigQueryUtils.toTableSchema(Util.labelAnnotationSchema);
           break;
       }
-      LOG.info("Schema {} ", schema.toString());
+      LOG.debug("Schema {} ", schema.toString());
       return schema;
     }
   }
