@@ -84,7 +84,7 @@ public abstract class BigQueryDynamicTransform
     public KV<String, TableRow> getDestination(ValueInSingleWindow<KV<String, TableRow>> element) {
       String key = element.getValue().getKey();
       String tableName = String.format("%s:%s.%s", projectId, datasetName, key);
-      LOG.info("Table Name {}", tableName);
+      LOG.debug("Table Name {}", tableName);
       return KV.of(tableName, element.getValue().getValue());
     }
 
@@ -92,16 +92,14 @@ public abstract class BigQueryDynamicTransform
     public TableDestination getTable(KV<String, TableRow> destination) {
       TableDestination dest =
           new TableDestination(destination.getKey(), "vision api data from dataflow");
-      LOG.info("Table Destination {}", dest.getTableSpec());
+      LOG.debug("Table Destination {}", dest.getTableSpec());
       return dest;
     }
 
     @Override
     public TableSchema getSchema(KV<String, TableRow> destination) {
       TableSchema schema;
-      LOG.info("Key {}", destination.getKey());
       String key = destination.getKey().split("\\.")[1];
-      LOG.info("Table schema key {}", key);
 
       switch (key) {
         case "LABEL_ANNOTATION":

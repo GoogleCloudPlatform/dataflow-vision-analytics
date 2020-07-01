@@ -53,7 +53,7 @@ public class BatchRequestDoFn extends DoFn<KV<Integer, String>, List<String>> {
             element -> {
               boolean clearBuffer = (bufferCount.intValue() == batchSize.intValue());
               if (clearBuffer) {
-                LOG.info("Clear Buffer {}", rows.size());
+                LOG.debug("Clear Buffer {}", rows.size());
                 output.output(rows);
                 rows.clear();
                 bufferCount.set(0);
@@ -66,7 +66,7 @@ public class BatchRequestDoFn extends DoFn<KV<Integer, String>, List<String>> {
               }
             });
     if (!rows.isEmpty()) {
-      LOG.info("Remaining rows {}", rows.size());
+      LOG.debug("Remaining rows {}", rows.size());
       output.output(rows);
     }
   }

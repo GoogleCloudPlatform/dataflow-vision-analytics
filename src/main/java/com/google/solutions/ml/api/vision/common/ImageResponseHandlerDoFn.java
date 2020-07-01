@@ -17,6 +17,8 @@ package com.google.solutions.ml.api.vision.common;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
+import com.google.cloud.vision.v1.CropHint;
+import com.google.cloud.vision.v1.CropHintsAnnotation;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.FaceAnnotation;
 import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
@@ -105,15 +107,10 @@ public class ImageResponseHandlerDoFn
                     break;
                   case "cropHintsAnnotation":
                     if (imageResponse.hasCropHintsAnnotation()) {
-                      //                        CropHintsAnnotation annotation =
-                      // imageResponse.getCropHintsAnnotation();
-                      //                        numberOfAnnotationResponse.inc(1);
-                      //                        GenericJson json
-                      // =VisionApiUtil.convertCorpHintAnnotationProtoToJson(annotation);
-                      //                        c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION"),json));
-
+                      CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
+                      for (CropHint crophint : annotation.getCropHintsList()) {
+                        Row row = Util.transformCorpHintsAnnotations(imageName, crophint);
+                      }
                     }
                     break;
                   case "fullTextAnnotation":

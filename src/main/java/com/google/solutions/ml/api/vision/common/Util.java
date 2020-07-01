@@ -17,30 +17,11 @@ package com.google.solutions.ml.api.vision.common;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
-import com.google.api.client.json.GenericJson;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.vision.v1.CropHintsAnnotation;
+import com.google.cloud.vision.v1.CropHint;
 import com.google.cloud.vision.v1.EntityAnnotation;
-import com.google.cloud.vision.v1.FaceAnnotation;
-import com.google.cloud.vision.v1.Feature;
-import com.google.cloud.vision.v1.ImageProperties;
-import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
-import com.google.cloud.vision.v1.ProductSearchResults;
-import com.google.cloud.vision.v1.SafeSearchAnnotation;
-import com.google.cloud.vision.v1.TextAnnotation;
-import com.google.cloud.vision.v1.WebDetection;
 import com.google.common.collect.ImmutableMap;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
-import com.google.protobuf.FieldMask;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
-import com.google.protobuf.util.JsonFormat.TypeRegistry;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -52,7 +33,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTimeZone;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -73,11 +53,6 @@ public class Util {
   public static final String NO_VALID_EXT_FOUND_ERROR_MESSAGE =
       "File {} does not contain a valid extension";
 
-  /** Default interval for polling files in GCS. */
-  public static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(5);
-
-  public static Gson gson = new Gson();
-  /** Process time stamp field added part of BigQuery Column */
   private static final DateTimeFormatter TIMESTAMP_FORMATTER =
       DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
@@ -121,29 +96,11 @@ public class Util {
             .toFormatter();
   }
 
-  public static Feature convertJsonToFeature(String json) throws InvalidProtocolBufferException {
-
-    Feature.Builder feature = Feature.newBuilder();
-    TypeRegistry registry = TypeRegistry.newBuilder().add(feature.getDescriptorForType()).build();
-    JsonFormat.Parser jFormatter = JsonFormat.parser().usingTypeRegistry(registry);
-    if (jFormatter != null) {
-      jFormatter.merge(json.toString(), feature);
-    }
-
-    return feature.build();
-  }
-
   public static final Schema verticSchema =
       Stream.of(
               Schema.Field.of("x", FieldType.INT32).withNullable(true),
               Schema.Field.of("y", FieldType.INT32).withNullable(true))
           .collect(toSchema());
-
-  //  public static final Schema verticesSchema =
-  //      Stream.of(
-  //              Schema.Field.of("vertic", FieldType.array(FieldType.row(verticSchema)))
-  //                  .withNullable(true))
-  //          .collect(toSchema());
 
   public static final Schema boundingPolySchema =
       Stream.of(
@@ -157,11 +114,6 @@ public class Util {
               Schema.Field.of("longitude", FieldType.DOUBLE).withNullable(true))
           .collect(toSchema());
 
-  //  public static final Schema locationsSchema =
-  //		  Stream.of(
-  //	              Schema.Field.of("latLon", FieldType.array(FieldType.row(latLonSchema)))
-  //	                  .withNullable(true))
-  //	          .collect(toSchema());
   public static final Schema locationSchema =
       Stream.of(Schema.Field.of("latLon", FieldType.row(latLonSchema)).withNullable(true))
           .collect(toSchema());
@@ -183,8 +135,27 @@ public class Util {
               Schema.Field.of("description", FieldType.STRING).withNullable(true),
               Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
               Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true),
-              Schema.Field.of("locations", FieldType.array(FieldType.row(locationSchema)))
+              Schema.Field.of(
+                      "locations",
+                      FieldType.array(FieldType.row(locationSchema)).withNullable(true))
                   .withNullable(true))
+          .collect(toSchema());
+  public static final Schema logoAnnotationSchema =
+      Stream.of(
+              Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
+              Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("mid", FieldType.STRING).withNullable(true),
+              Schema.Field.of("description", FieldType.STRING).withNullable(true),
+              Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true))
+          .collect(toSchema());
+  public static final Schema corpHintsAnnotationSchema =
+      Stream.of(
+              Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
+              Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("confidence", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("importanceFraction", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true))
           .collect(toSchema());
 
   public static Row transformLabelAnnotations(String imageName, EntityAnnotation annotation) {
@@ -203,9 +174,78 @@ public class Util {
   }
 
   public static Row transformLandmarkAnnotations(String imageName, EntityAnnotation annotation) {
-    List<Row> verticesList = new ArrayList<>();
-    List<Row> locationList = new ArrayList<>();
+    Row row =
+        Row.withSchema(landmarkAnnotationSchema)
+            .addValues(
+                imageName,
+                "landmark_annotation",
+                annotation.getMid(),
+                annotation.getDescription(),
+                annotation.getScore(),
+                Row.withSchema(boundingPolySchema)
+                    .addValue(checkBoundingPolyForEntityAnnotation(annotation))
+                    .build(),
+                checkLocations(annotation))
+            .build();
 
+    LOG.info("Row {}", row.toString());
+    return row;
+  }
+
+  public static Row transformLogoAnnotations(String imageName, EntityAnnotation annotation) {
+    Row row =
+        Row.withSchema(logoAnnotationSchema)
+            .addValues(
+                imageName,
+                "logo_annotation",
+                annotation.getMid(),
+                annotation.getDescription(),
+                annotation.getScore(),
+                Row.withSchema(boundingPolySchema)
+                    .addValue(checkBoundingPolyForEntityAnnotation(annotation))
+                    .build())
+            .build();
+
+    LOG.info("Row {}", row.toString());
+    return row;
+  }
+
+  public static Row transformCorpHintsAnnotations(String imageName, CropHint annotation) {
+
+    Row row =
+        Row.withSchema(corpHintsAnnotationSchema)
+            .addValues(
+                imageName,
+                "corp_hints",
+                annotation.getConfidence(),
+                annotation.getImportanceFraction(),
+                Row.withSchema(boundingPolySchema)
+                    .addValue(checkBoundingPolyForCorpHints(annotation))
+                    .build())
+            .build();
+
+    LOG.info("Row {}", row.toString());
+    return row;
+  }
+
+  private static List<Row> checkBoundingPolyForCorpHints(CropHint corphint) {
+    List<Row> verticesList = new ArrayList<>();
+    if (corphint.hasBoundingPoly()) {
+      corphint
+          .getBoundingPoly()
+          .getVerticesList()
+          .forEach(
+              vertics -> {
+                verticesList.add(
+                    Row.withSchema(verticSchema).addValues(vertics.getX(), vertics.getY()).build());
+              });
+    }
+
+    return verticesList;
+  }
+
+  private static List<Row> checkBoundingPolyForEntityAnnotation(EntityAnnotation annotation) {
+    List<Row> verticesList = new ArrayList<>();
     if (annotation.hasBoundingPoly()) {
 
       annotation
@@ -218,6 +258,11 @@ public class Util {
               });
     }
 
+    return verticesList;
+  }
+
+  private static List<Row> checkLocations(EntityAnnotation annotation) {
+    List<Row> locationList = new ArrayList<>();
     if (annotation.getLocationsCount() > 0) {
       annotation
           .getLocationsList()
@@ -226,123 +271,17 @@ public class Util {
                 double latitude = location.getLatLng().getLatitude();
                 double longitude = location.getLatLng().getLongitude();
                 locationList.add(
-                    Row.withSchema(latLonSchema).addValues(latitude, longitude).build());
+                    Row.withSchema(locationSchema)
+                        .addValues(
+                            Row.withSchema(latLonSchema).addValues(latitude, longitude).build())
+                        .build());
               });
     }
-
-    Row row =
-        Row.withSchema(landmarkAnnotationSchema)
-            .addValues(
-                imageName,
-                "landmark_annotation",
-                annotation.getMid(),
-                annotation.getDescription(),
-                annotation.getScore(),
-                verticesList,
-                Row.withSchema(locationSchema).addArray(locationList).build()).build();
-
-          
-
-    LOG.info("Row {}", row.toString());
-    return row;
-  }
-
-  public static GenericJson convertFaceAnnotationProtoToJson(FaceAnnotation annotation)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
-  }
-
-  public static GenericJson convertCorpHintAnnotationProtoToJson(CropHintsAnnotation annotation)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
-  }
-
-  public static GenericJson convertTextAnnotationProtoToJson(TextAnnotation annotation)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
-  }
-
-  public static GenericJson convertImagePropertiesAnnotationProtoToJson(ImageProperties annotation)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
-  }
-
-  public static GenericJson convertLocalizedObjectAnnotationProtoToJson(
-      LocalizedObjectAnnotation annotation)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
-  }
-
-  public static GenericJson convertProductSearchAnnotationProtoToJson(
-      ProductSearchResults annotation) throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
-  }
-
-  public static GenericJson convertSafeAnnotationProtoToJson(SafeSearchAnnotation annotation)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
-  }
-
-  public static GenericJson convertWebDetectionProtoToJson(WebDetection annotation)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
-  }
-
-  public static GenericJson convertFullTextAnnotationProtoToJson(TextAnnotation annotation)
-      throws JsonSyntaxException, InvalidProtocolBufferException {
-    return gson.fromJson(
-        JsonFormat.printer().print(annotation), new TypeToken<GenericJson>() {}.getType());
+    return locationList;
   }
 
   public static String getTimeStamp() {
     return TIMESTAMP_FORMATTER.print(Instant.now().toDateTime(DateTimeZone.UTC));
-  }
-
-  private static FieldMask convertStringToFieldMask(String selectedCloumns) {
-    Iterable<String> paths = Arrays.asList(selectedCloumns.split(","));
-    FieldMask.Builder fieldMaskBuilder = FieldMask.newBuilder();
-    for (String path : paths) {
-      if (path.isEmpty()) {
-        continue;
-      }
-      fieldMaskBuilder.addPaths(path);
-    }
-    FieldMask masks = fieldMaskBuilder.build();
-    LOG.debug("Field Mask Config {}", masks.toString());
-    return fieldMaskBuilder.build();
-  }
-
-  public static Map<String, FieldMask> convertJsonToFieldMask(String json) throws Exception {
-
-    Map<String, FieldMask> dataMap = new HashMap<String, FieldMask>();
-
-    if (json != null) {
-      JsonObject jsonConfig = gson.fromJson(json, new TypeToken<JsonObject>() {}.getType());
-      jsonConfig
-          .get("selectedColumns")
-          .getAsJsonArray()
-          .forEach(
-              element -> {
-                element
-                    .getAsJsonObject()
-                    .entrySet()
-                    .forEach(
-                        entry -> {
-                          dataMap.put(
-                              entry.getKey(),
-                              convertStringToFieldMask(entry.getValue().getAsString()));
-                        });
-              });
-    }
-    return dataMap;
   }
 
   private static Object fromBeamField(FieldType fieldType, Object fieldValue) {
