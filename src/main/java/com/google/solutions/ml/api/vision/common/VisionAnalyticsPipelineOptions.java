@@ -22,7 +22,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 
 /** Interface to store pipeline options provided by the user */
-public interface VisionApiPipelineOptions extends DataflowPipelineOptions {
+public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions {
 
   @Description("Subscriber Id to receive message from")
   String getSubscriberId();

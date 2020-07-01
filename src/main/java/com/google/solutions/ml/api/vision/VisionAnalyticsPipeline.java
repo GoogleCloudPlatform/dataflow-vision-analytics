@@ -20,7 +20,7 @@ import com.google.solutions.ml.api.vision.common.BigQueryDynamicTransform;
 import com.google.solutions.ml.api.vision.common.ImageRequestDoFn;
 import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
 import com.google.solutions.ml.api.vision.common.ReadImageTransform;
-import com.google.solutions.ml.api.vision.common.VisionApiPipelineOptions;
+import com.google.solutions.ml.api.vision.common.VisionAnalyticsPipelineOptions;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -32,26 +32,28 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class VisionTextToBigQueryStreaming {
-  public static final Logger LOG = LoggerFactory.getLogger(VisionTextToBigQueryStreaming.class);
+public class VisionAnalyticsPipeline {
+  public static final Logger LOG = LoggerFactory.getLogger(VisionAnalyticsPipeline.class);
 
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
    * blocking execution is required, use the {@link
-   * VisionTextToBigQueryStreaming#run(VisionApiPipelineOptions)} method to start the pipeline and
+   * VisionAnalyticsPipeline#run(VisionAnalyticsPipelineOptions)} method to start the pipeline and
    * invoke {@code result.waitUntilFinish()} on the {@link PipelineResult}
    *
    * @param args The command-line arguments to the pipeline.
    */
   public static void main(String[] args) throws Exception {
 
-    VisionApiPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(VisionApiPipelineOptions.class);
+    VisionAnalyticsPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args)
+            .withValidation()
+            .as(VisionAnalyticsPipelineOptions.class);
 
     run(options);
   }
 
-  public static PipelineResult run(VisionApiPipelineOptions options) throws Exception {
+  public static PipelineResult run(VisionAnalyticsPipelineOptions options) throws Exception {
 
     Pipeline p = Pipeline.create(options);
 

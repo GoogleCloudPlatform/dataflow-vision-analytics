@@ -48,7 +48,6 @@ apply plugin: "com.diffplug.gradle.spotless"
 
 
 mainClassName = System.getProperty("mainClass")
-//mainClassName = 'com.google.solution.ml.api.vision.VisionTextToBigQueryStreaming' 
 jib {
   from {
     image = 'gcr.io/dataflow-templates-base/java8-template-launcher-base:latest'

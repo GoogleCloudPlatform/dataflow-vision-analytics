@@ -19,7 +19,10 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.CropHint;
+import com.google.cloud.vision.v1.DominantColorsAnnotation;
 import com.google.cloud.vision.v1.EntityAnnotation;
+import com.google.cloud.vision.v1.FaceAnnotation;
+import com.google.cloud.vision.v1.ImageProperties;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,17 +61,12 @@ public class Util {
 
   public static final Map<String, String> BQ_TABLE_NAME_MAP =
       ImmutableMap.<String, String>builder()
-          .put("BQ_TABLE_NAME_ENTITY_ANNOTATION", "ENTITY_ANNOTATION")
+          .put("BQ_TABLE_NAME_LOGO_ANNOTATION", "LOGO_ANNOTATION")
           .put("BQ_TABLE_NAME_LABEL_ANNOTATION", "LABEL_ANNOTATION")
           .put("BQ_TABLE_NAME_LANDMARK_ANNOTATION", "LANDMARK_ANNOTATION")
-          .put("BQ_TABLE_NAME_FACE_ANNOTATION", "FACE_DETECTION")
+          .put("BQ_TABLE_NAME_FACE_ANNOTATION", "FACE_ANNOTATION")
           .put("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION", "CORP_HINTS_ANNOTATION")
-          .put("BQ_TABLE_NAME_FULL_TEXT_ANNOTATION", "TEXT_ANNOTATION")
           .put("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION", "IMAGE_PROPERTIES")
-          .put("BQ_TABLE_NAME_LOCALIZED_OBJECT_ANNOTATION", "LOCALIZED_OBJECT_ANNOTATION")
-          .put("BQ_TABLE_NAME_PRODUCT_SEARCH_RESULT", "PRODUCT_SEARCH_RESULT")
-          .put("BQ_TABLE_NAME_SAFE_SEARCH_ANNOTATION", "SAFE_SEARCH_ANNOTATION")
-          .put("BQ_TABLE_NAME_WEB_DETECTION_ANNOTATION", "WEB_DETECTION")
           .build();
 
   static {
@@ -101,8 +99,36 @@ public class Util {
               Schema.Field.of("x", FieldType.INT32).withNullable(true),
               Schema.Field.of("y", FieldType.INT32).withNullable(true))
           .collect(toSchema());
+  public static final Schema colorSchema =
+      Stream.of(
+              Schema.Field.of("red", FieldType.INT32).withNullable(true),
+              Schema.Field.of("green", FieldType.INT32).withNullable(true),
+              Schema.Field.of("blue", FieldType.INT32).withNullable(true))
+          .collect(toSchema());
+  public static final Schema colorsSchema =
+      Stream.of(
+              Schema.Field.of("score", FieldType.INT32).withNullable(true),
+              Schema.Field.of("pixelFraction", FieldType.INT32).withNullable(true),
+              Schema.Field.of("color", FieldType.row(colorSchema)).withNullable(true))
+          .collect(toSchema());
+  public static final Schema positionSchema =
+      Stream.of(
+              Schema.Field.of("x", FieldType.INT32).withNullable(true),
+              Schema.Field.of("y", FieldType.INT32).withNullable(true),
+              Schema.Field.of("z", FieldType.INT32).withNullable(true))
+          .collect(toSchema());
+  public static final Schema landmarkSchema =
+      Stream.of(
+              Schema.Field.of("type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("position", FieldType.row(positionSchema)).withNullable(true))
+          .collect(toSchema());
 
   public static final Schema boundingPolySchema =
+      Stream.of(
+              Schema.Field.of("vertices", FieldType.array(FieldType.row(verticSchema)))
+                  .withNullable(true))
+          .collect(toSchema());
+  public static final Schema fdboundingPolySchema =
       Stream.of(
               Schema.Field.of("vertices", FieldType.array(FieldType.row(verticSchema)))
                   .withNullable(true))
@@ -157,6 +183,23 @@ public class Util {
               Schema.Field.of("importanceFraction", FieldType.FLOAT).withNullable(true),
               Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true))
           .collect(toSchema());
+  public static final Schema faceDetectionAnnotationSchema =
+      Stream.of(
+              Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
+              Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true),
+              Schema.Field.of("fbBoundingPoly", FieldType.row(fdboundingPolySchema))
+                  .withNullable(true),
+              Schema.Field.of("landmarks", FieldType.array(FieldType.row(landmarkSchema)))
+                  .withNullable(true))
+          .collect(toSchema());
+
+  public static final Schema imagePropertiesAnnotationSchema =
+      Stream.of(
+              Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
+              Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("dominantColors", FieldType.row(colorsSchema)).withNullable(true))
+          .collect(toSchema());
 
   public static Row transformLabelAnnotations(String imageName, EntityAnnotation annotation) {
     Row row =
@@ -186,6 +229,26 @@ public class Util {
                     .addValue(checkBoundingPolyForEntityAnnotation(annotation))
                     .build(),
                 checkLocations(annotation))
+            .build();
+    LOG.info("Row {}", row.toString());
+    return row;
+  }
+
+  public static Row transformFaceAnnotations(String imageName, FaceAnnotation annotation) {
+    Row row =
+        Row.withSchema(faceDetectionAnnotationSchema)
+            .addValues(
+                imageName,
+                "face_annotation",
+                Row.withSchema(boundingPolySchema)
+                    .addValue(checkBoundingPolyForFaceAnnotation(annotation))
+                    .build(),
+                Row.withSchema(fdboundingPolySchema)
+                    .addValue(checkFDboundingPolyForFaceAnnotation(annotation))
+                    .build(),
+                Row.withSchema(landmarkSchema)
+                    .addValue(checkLandmarksForFaceAnnotation(annotation))
+                    .build())
             .build();
 
     LOG.info("Row {}", row.toString());
@@ -223,9 +286,43 @@ public class Util {
                     .addValue(checkBoundingPolyForCorpHints(annotation))
                     .build())
             .build();
+    LOG.info("Row {}", row.toString());
+    return row;
+  }
+
+  public static Row transformImagePropertiesAnnotations(
+      String imageName, ImageProperties annotation) {
+    Row row =
+        Row.withSchema(imagePropertiesAnnotationSchema)
+            .addValues(
+                imageName,
+                "image_properties",
+                (annotation.hasDominantColors())
+                    ? checkDominantColorsForImageProperties(annotation.getDominantColors())
+                    : null)
+            .build();
 
     LOG.info("Row {}", row.toString());
     return row;
+  }
+
+  private static List<Row> checkDominantColorsForImageProperties(
+      DominantColorsAnnotation annotation) {
+    List<Row> colors = new ArrayList<>();
+    annotation
+        .getColorsList()
+        .forEach(
+            color -> {
+              float red = color.getColor().getRed();
+              float green = color.getColor().getGreen();
+              float blue = color.getColor().getBlue();
+              float score = color.getScore();
+              float pixelFraction = color.getPixelFraction();
+              Row c = Row.withSchema(colorSchema).addValues(red, green, blue).build();
+              colors.add(Row.withSchema(colorsSchema).addValues(score, pixelFraction, c).build());
+            });
+
+    return colors;
   }
 
   private static List<Row> checkBoundingPolyForCorpHints(CropHint corphint) {
@@ -278,6 +375,59 @@ public class Util {
               });
     }
     return locationList;
+  }
+
+  private static List<Row> checkBoundingPolyForFaceAnnotation(FaceAnnotation annotation) {
+    List<Row> verticesList = new ArrayList<>();
+    if (annotation.hasBoundingPoly()) {
+
+      annotation
+          .getBoundingPoly()
+          .getVerticesList()
+          .forEach(
+              vertics -> {
+                verticesList.add(
+                    Row.withSchema(verticSchema).addValues(vertics.getX(), vertics.getY()).build());
+              });
+    }
+
+    return verticesList;
+  }
+
+  private static List<Row> checkFDboundingPolyForFaceAnnotation(FaceAnnotation annotation) {
+    List<Row> verticesList = new ArrayList<>();
+    if (annotation.hasFdBoundingPoly()) {
+      annotation
+          .getBoundingPoly()
+          .getVerticesList()
+          .forEach(
+              vertics -> {
+                verticesList.add(
+                    Row.withSchema(verticSchema).addValues(vertics.getX(), vertics.getY()).build());
+              });
+    }
+
+    return verticesList;
+  }
+
+  private static List<Row> checkLandmarksForFaceAnnotation(FaceAnnotation annotation) {
+    List<Row> landmarkList = new ArrayList<>();
+
+    annotation
+        .getLandmarksList()
+        .forEach(
+            landmark -> {
+              String type = landmark.getType().toString();
+              float x = landmark.getPosition().getX();
+              float y = landmark.getPosition().getY();
+              float z = landmark.getPosition().getZ();
+              landmarkList.add(
+                  Row.withSchema(landmarkSchema)
+                      .addValues(type, Row.withSchema(positionSchema).addValues(x, y, z).build())
+                      .build());
+            });
+
+    return landmarkList;
   }
 
   public static String getTimeStamp() {

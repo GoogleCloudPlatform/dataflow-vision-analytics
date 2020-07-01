@@ -21,10 +21,6 @@ import com.google.cloud.vision.v1.CropHint;
 import com.google.cloud.vision.v1.CropHintsAnnotation;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.FaceAnnotation;
-import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
-import com.google.cloud.vision.v1.ProductSearchResults;
-import com.google.cloud.vision.v1.SafeSearchAnnotation;
-import com.google.cloud.vision.v1.WebDetection;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -58,7 +54,6 @@ public class ImageResponseHandlerDoFn
                   case "labelAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLabelAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLabelAnnotationsList()) {
-
                       Row row = Util.transformLabelAnnotations(imageName, annotation);
                       c.output(
                           KV.of(
@@ -79,30 +74,22 @@ public class ImageResponseHandlerDoFn
                   case "logoAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLogoAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLogoAnnotationsList()) {
-                      //                      Row row =
-                      //                          Util.convertEntityAnnotationProtoToJson(
-                      //                              imageName,
-                      //                              annotation,
-                      //
-                      // Feature.newBuilder().setType(Type.LOGO_DETECTION).build());
-                      //                      c.output(
-                      //                          KV.of(
-                      //
-                      // Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_ENTITY_ANNOTATION"),
-                      //                              Util.toTableRow(row)));
+                      Row row = Util.transformLogoAnnotations(imageName, annotation);
+                      c.output(
+                          KV.of(
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LOGO_ANNOTATION"),
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "faceAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getFaceAnnotationsCount());
 
                     for (FaceAnnotation annotation : imageResponse.getFaceAnnotationsList()) {
-                      //                    		 GenericJson json
-                      // =VisionApiUtil.convertFaceAnnotationProtoToJson(annotation);
-                      //
-                      // c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_FACE_ANNOTATION"),json));
-
+                      Row row = Util.transformFaceAnnotations(imageName, annotation);
+                      c.output(
+                          KV.of(
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_FACE_ANNOTATION"),
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "cropHintsAnnotation":
@@ -110,94 +97,33 @@ public class ImageResponseHandlerDoFn
                       CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
                         Row row = Util.transformCorpHintsAnnotations(imageName, crophint);
+                        c.output(
+                            KV.of(
+                                Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION"),
+                                Util.toTableRow(row)));
                       }
                     }
                     break;
-                  case "fullTextAnnotation":
-                    if (imageResponse.hasFullTextAnnotation()) {
-                      //                        TextAnnotation annotation =
-                      // imageResponse.getFullTextAnnotation();
-                      //                        numberOfAnnotationResponse.inc(1);
-                      //                        GenericJson json
-                      // =VisionApiUtil.convertFullTextAnnotationProtoToJson(annotation);
-                      //                        c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_FULL_TEXT_ANNOTATION"),json));
 
-                    }
-                    break;
                   case "imagePropertiesAnnotation":
                     if (imageResponse.hasImagePropertiesAnnotation()) {
-                      //                        ImageProperties annotation =
-                      // imageResponse.getImagePropertiesAnnotation();
-                      //                        numberOfAnnotationResponse.inc(1);
-                      //                        GenericJson json
-                      // =VisionApiUtil.convertImagePropertiesAnnotationProtoToJson(annotation);
-                      //                        c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION"),json));
-
+                      Row row =
+                          Util.transformImagePropertiesAnnotations(
+                              imageName, imageResponse.getImagePropertiesAnnotation());
+                      c.output(
+                          KV.of(
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION"),
+                              Util.toTableRow(row)));
                     }
-                    break;
-                  case "localizedObjectAnnotations":
-                    numberOfAnnotationResponse.inc(
-                        imageResponse.getLocalizedObjectAnnotationsCount());
-                    for (LocalizedObjectAnnotation annotation :
-                        imageResponse.getLocalizedObjectAnnotationsList()) {
-                      //                    		GenericJson json
-                      // =VisionApiUtil.convertLocalizedObjectAnnotationProtoToJson(annotation);
-                      //                            c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LOCALIZED_OBJECT_ANNOTATION"),json));
-
-                    }
-                    break;
-                  case "productSearchResults":
-                    if (imageResponse.hasProductSearchResults()) {
-                      ProductSearchResults annotation = imageResponse.getProductSearchResults();
-                      numberOfAnnotationResponse.inc(1);
-                      //                        GenericJson json
-                      // =VisionApiUtil.convertProductSearchAnnotationProtoToJson(annotation);
-                      //                        c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_PRODUCT_SEARCH_RESULT"),json));
-
-                    }
-                    break;
-                  case "safeSearchAnnotation":
-                    if (imageResponse.hasSafeSearchAnnotation()) {
-                      SafeSearchAnnotation annotation = imageResponse.getSafeSearchAnnotation();
-                      numberOfAnnotationResponse.inc(1);
-                      //                        GenericJson json
-                      // =VisionApiUtil.convertSafeAnnotationProtoToJson(annotation);
-                      //                        c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_SAFE_SEARCH_ANNOTATION"),json));
-
-                    }
-                    break;
-                  case "textAnnotations":
-                    numberOfAnnotationResponse.inc(imageResponse.getTextAnnotationsCount());
-                    for (EntityAnnotation annotation : imageResponse.getTextAnnotationsList()) {
-                      //                    		 GenericJson json
-                      // =VisionApiUtil.convertEntityAnnotationProtoToJson(annotation);
-                      //
-                      // c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_TEXT_ANNOTATION"),json));
-
-                    }
-                    break;
-                  case "webDetection":
-                    if (imageResponse.hasWebDetection()) {
-                      WebDetection annotation = imageResponse.getWebDetection();
-                      numberOfAnnotationResponse.inc(1);
-                      //                        GenericJson json
-                      // =VisionApiUtil.convertWebDetectionProtoToJson(annotation);
-                      //                        c.output(VisionApiUtil.labelAnnotationTag,KV.of(
-                      //
-                      // VisionApiUtil.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_WEB_DETECTION_ANNOTATION"),json));
-
+                    if (imageResponse.hasCropHintsAnnotation()) {
+                      CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
+                      for (CropHint crophint : annotation.getCropHintsList()) {
+                        Row row = Util.transformCorpHintsAnnotations(imageName, crophint);
+                        c.output(
+                            KV.of(
+                                Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CORP_HINTS_ANNOTATION"),
+                                Util.toTableRow(row)));
+                      }
                     }
                     break;
                   default:
@@ -210,8 +136,7 @@ public class ImageResponseHandlerDoFn
                             .withTableRow(new TableRow());
                 }
               } catch (Exception e) {
-                LOG.error("Select Column mode exception {}", e.getMessage());
-                e.printStackTrace();
+                LOG.error("Error processing response", e.getMessage());
               }
             });
   }
