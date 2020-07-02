@@ -1,17 +1,17 @@
 /*
- * Copyright (C) 2020 Google Inc.
+ * Copyright 2020 Google LLC
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.google.solutions.ml.api.vision.common;
 
@@ -21,6 +21,7 @@ import com.google.cloud.vision.v1.CropHint;
 import com.google.cloud.vision.v1.CropHintsAnnotation;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.FaceAnnotation;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -30,14 +31,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * ProcessImageResponse {@link ImageResponseHandlerDoFn} class parses the image response for
+ * ProcessImageResponse {@link ProcessImageResponseDoFn} class parses the image response for
  * specific annotation and using image response builder output the table and table row for BigQuery
  */
-public class ImageResponseHandlerDoFn
+@SuppressWarnings("serial")
+public class ProcessImageResponseDoFn
     extends DoFn<KV<String, AnnotateImageResponse>, KV<String, TableRow>> {
   public static final Logger LOG = LoggerFactory.getLogger(ImageRequestDoFn.class);
   private final Counter numberOfAnnotationResponse =
-      Metrics.counter(ImageResponseHandlerDoFn.class, "NumberOfAnnotationProcessed");
+      Metrics.counter(ProcessImageResponseDoFn.class, "NumberOfAnnotationProcessed");
 
   @ProcessElement
   public void processElement(
@@ -142,13 +144,12 @@ public class ImageResponseHandlerDoFn
                     out.get(Util.apiResponseFailedElements)
                         .output(
                             KV.of(
-                                imageName,
-                                ErrorMessageBuilder.newBuilder()
-                                    .setErrorMessage(errorMessage)
-                                    .setFileName(imageName)
-                                    .setTimeStamp(Util.getTimeStamp())
-                                    .build()
-                                    .withTableRow(new TableRow())));
+                                Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
+                                Util.toTableRow(
+                                    Row.withSchema(Util.errorSchema)
+                                        .addValues(
+                                            imageName, Util.getTimeStamp(), errorMessage, null)
+                                        .build())));
                 }
               } catch (Exception e) {
                 LOG.error(
@@ -156,13 +157,15 @@ public class ImageResponseHandlerDoFn
                 out.get(Util.apiResponseFailedElements)
                     .output(
                         KV.of(
-                            imageName,
-                            ErrorMessageBuilder.newBuilder()
-                                .setErrorMessage(e.getMessage())
-                                .setFileName(imageName)
-                                .setTimeStamp(Util.getTimeStamp())
-                                .build()
-                                .withTableRow(new TableRow())));
+                            Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
+                            Util.toTableRow(
+                                Row.withSchema(Util.errorSchema)
+                                    .addValues(
+                                        imageName,
+                                        Util.getTimeStamp(),
+                                        e.getMessage(),
+                                        ExceptionUtils.getStackTrace(e))
+                                    .build())));
               }
             });
   }

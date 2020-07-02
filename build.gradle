@@ -1,5 +1,6 @@
+  
 /*
- * Copyright 2019 Google LLC
+ * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +17,33 @@
 buildscript {
     ext {
         dataflowBeamVersion = '2.22.0'
-        visionApiVersion = '1.99.3'
-        
-        
+        visionApiVersion= '1.99.3'
     }
     repositories {
+        
         mavenCentral()
         jcenter()
         maven {
-     		 url "https://plugins.gradle.org/m2/"
+    		  url "https://plugins.gradle.org/m2/" 
+    		  
     	}
+    		
     	dependencies {
-        	classpath "net.ltgt.gradle:gradle-apt-plugin:0.19"
-        	classpath "gradle.plugin.com.google.cloud.tools:jib-gradle-plugin:1.4.0"
-         	classpath "com.diffplug.spotless:spotless-plugin-gradle:3.24.2"
+            classpath "net.ltgt.gradle:gradle-apt-plugin:0.19"
+            classpath "gradle.plugin.com.google.cloud.tools:jib-gradle-plugin:1.4.0"
+            classpath "com.diffplug.spotless:spotless-plugin-gradle:3.24.2"
+        }
+        
         
         
     }
-    	
-    }
-    
+}
+
+group 'com.google.solutions'
+version '0.1.0'
+
+repositories {
+   mavenCentral()
 }
 
 apply plugin: 'java'
@@ -45,9 +53,29 @@ apply plugin: 'idea'
 apply plugin: "net.ltgt.apt"
 apply plugin: 'com.google.cloud.tools.jib'
 apply plugin: "com.diffplug.gradle.spotless"
+// Licence header enforced by spotless
+def javaLicenseHeader = """/*
+ * Copyright 2020 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+"""
 
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+applicationDefaultJvmArgs = ['-Xms4g', '-Xmx16g']
+mainClassName = System.getProperty('mainClass', 'com.google.solutions.ml.api.vision.VisionAnalyticsPipeline')
 
-mainClassName = System.getProperty("mainClass")
 jib {
   from {
     image = 'gcr.io/dataflow-templates-base/java8-template-launcher-base:latest'
@@ -81,6 +109,7 @@ dependencies {
     compile group: 'org.apache.beam', name: 'beam-sdks-java-core', version: dataflowBeamVersion
     compile group: 'org.apache.beam', name: 'beam-runners-google-cloud-dataflow-java', version: dataflowBeamVersion
     compile group: 'org.apache.beam', name: 'beam-runners-direct-java', version: dataflowBeamVersion
+	compile group: 'org.apache.beam', name: 'beam-sdks-java-extensions-ml', version: dataflowBeamVersion
 	compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.5'
 	compile "com.google.auto.value:auto-value-annotations:1.6.2"
     annotationProcessor "com.google.auto.value:auto-value:1.6.2"
@@ -122,15 +151,15 @@ run {
         args project.args.split('\\s')
     }
 }
+// Spotless configuration
+
+def enableSpotlessCheck = project.hasProperty('enableSpotlessCheck') && project.enableSpotlessCheck == 'true'
 spotless {
+  enforceCheck enableSpotlessCheck
   java {
+    licenseHeader javaLicenseHeader
     googleJavaFormat()
   }
 }
-configurations.all {
-  resolutionStrategy {
-    force 'com.google.guava:guava:25.1-jre'
-  }
-} 
 run.mustRunAfter 'resources'
 

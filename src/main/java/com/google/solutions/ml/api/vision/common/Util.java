@@ -1,17 +1,17 @@
 /*
- * Copyright (C) 2019 Google Inc.
+ * Copyright 2020 Google LLC
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.google.solutions.ml.api.vision.common;
 
@@ -46,14 +46,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Util class to reuse some convert methods used in the pipeline multiple times */
+@SuppressWarnings("serial")
 public class Util {
 
   public static final Logger LOG = LoggerFactory.getLogger(Util.class);
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
   public static final TupleTag<KV<String, TableRow>> apiResponseSuccessElements =
       new TupleTag<KV<String, TableRow>>() {};
-  public static final TupleTag<KV<String, ErrorMessageBuilder>> apiResponseFailedElements =
-      new TupleTag<KV<String, ErrorMessageBuilder>>() {};
+  public static final TupleTag<KV<String, TableRow>> apiResponseFailedElements =
+      new TupleTag<KV<String, TableRow>>() {};
   public static final String ALLOWED_NOTIFICATION_EVENT_TYPE = String.valueOf("OBJECT_FINALIZE");
   /** Allowed image extension supported by Vision API */
   public static final String FILE_PATTERN = "(^.*\\.(JPEG|jpeg|JPG|jpg|PNG|png|GIF|gif)$)";
@@ -74,6 +75,7 @@ public class Util {
           .put("BQ_TABLE_NAME_FACE_ANNOTATION", "FACE_ANNOTATION")
           .put("BQ_TABLE_NAME_CROP_HINTS_ANNOTATION", "CROP_HINTS_ANNOTATION")
           .put("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION", "IMAGE_PROPERTIES")
+          .put("BQ_ERROR_TABLE", "ERROR_LOG")
           .build();
 
   static {
@@ -100,6 +102,14 @@ public class Util {
             .appendLiteral(" UTC")
             .toFormatter();
   }
+
+  public static final Schema errorSchema =
+      Stream.of(
+              Schema.Field.of("file_name", FieldType.STRING).withNullable(true),
+              Schema.Field.of("transaction_timestamp", FieldType.STRING).withNullable(true),
+              Schema.Field.of("error_messagee", FieldType.STRING).withNullable(true),
+              Schema.Field.of("stack_trace", FieldType.STRING).withNullable(true))
+          .collect(toSchema());
 
   public static final Schema verticSchema =
       Stream.of(
@@ -161,6 +171,7 @@ public class Util {
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("transaction_timestamp", FieldType.STRING).withNullable(true),
               Schema.Field.of("mid", FieldType.STRING).withNullable(true),
               Schema.Field.of("description", FieldType.STRING).withNullable(true),
               Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
@@ -170,6 +181,7 @@ public class Util {
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("transaction_timestamp", FieldType.STRING).withNullable(true),
               Schema.Field.of("mid", FieldType.STRING).withNullable(true),
               Schema.Field.of("description", FieldType.STRING).withNullable(true),
               Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
@@ -183,6 +195,7 @@ public class Util {
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("transaction_timestamp", FieldType.STRING).withNullable(true),
               Schema.Field.of("mid", FieldType.STRING).withNullable(true),
               Schema.Field.of("description", FieldType.STRING).withNullable(true),
               Schema.Field.of("score", FieldType.FLOAT).withNullable(true),
@@ -192,6 +205,7 @@ public class Util {
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("transaction_timestamp", FieldType.STRING).withNullable(true),
               Schema.Field.of("confidence", FieldType.FLOAT).withNullable(true),
               Schema.Field.of("importanceFraction", FieldType.FLOAT).withNullable(true),
               Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true))
@@ -200,6 +214,7 @@ public class Util {
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("transaction_timestamp", FieldType.STRING).withNullable(true),
               Schema.Field.of("boundingPoly", FieldType.row(boundingPolySchema)).withNullable(true),
               Schema.Field.of("fbBoundingPoly", FieldType.row(fdboundingPolySchema))
                   .withNullable(true),
@@ -211,6 +226,7 @@ public class Util {
       Stream.of(
               Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("feature_type", FieldType.STRING).withNullable(true),
+              Schema.Field.of("transaction_timestamp", FieldType.STRING).withNullable(true),
               Schema.Field.of("dominantColors", FieldType.row(colorListSchema)).withNullable(true))
           .collect(toSchema());
 
@@ -220,6 +236,7 @@ public class Util {
             .addValues(
                 imageName,
                 "label_annotation",
+                getTimeStamp(),
                 annotation.getMid(),
                 annotation.getDescription(),
                 annotation.getScore(),
@@ -235,6 +252,7 @@ public class Util {
             .addValues(
                 imageName,
                 "landmark_annotation",
+                getTimeStamp(),
                 annotation.getMid(),
                 annotation.getDescription(),
                 annotation.getScore(),
@@ -253,6 +271,7 @@ public class Util {
             .addValues(
                 imageName,
                 "face_annotation",
+                getTimeStamp(),
                 Row.withSchema(boundingPolySchema)
                     .addValue(checkBoundingPolyForFaceAnnotation(annotation))
                     .build(),
@@ -272,6 +291,7 @@ public class Util {
             .addValues(
                 imageName,
                 "logo_annotation",
+                getTimeStamp(),
                 annotation.getMid(),
                 annotation.getDescription(),
                 annotation.getScore(),
@@ -291,6 +311,7 @@ public class Util {
             .addValues(
                 imageName,
                 "corp_hints",
+                getTimeStamp(),
                 annotation.getConfidence(),
                 annotation.getImportanceFraction(),
                 Row.withSchema(boundingPolySchema)
@@ -309,6 +330,7 @@ public class Util {
             .addValues(
                 imageName,
                 "image_properties",
+                getTimeStamp(),
                 Row.withSchema(colorListSchema)
                     .addValues(
                         (annotation.hasDominantColors())
@@ -462,8 +484,8 @@ public class Util {
       case ARRAY:
       case ITERABLE:
         FieldType elementType = fieldType.getCollectionElementType();
-        Iterable items = (Iterable) fieldValue;
-        List convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
+        Iterable<?> items = (Iterable<?>) fieldValue;
+        List<Object> convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
         for (Object item : items) {
           convertedItems.add(fromBeamField(elementType, item));
         }

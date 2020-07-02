@@ -1,17 +1,17 @@
 /*
- * Copyright (C) 2019 Google Inc.
+ * Copyright 2020 Google LLC
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.google.solutions.ml.api.vision.common;
 
@@ -31,16 +31,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoValue
-public abstract class BigQueryDynamicTransform
+@SuppressWarnings("serial")
+public abstract class BigQueryDynamicWriteTransform
     extends PTransform<PCollection<KV<String, TableRow>>, WriteResult> {
-  public static final Logger LOG = LoggerFactory.getLogger(BigQueryDynamicTransform.class);
+  public static final Logger LOG = LoggerFactory.getLogger(BigQueryDynamicWriteTransform.class);
 
   public abstract String projectId();
 
   public abstract String datasetId();
 
   public static Builder newBuilder() {
-    return new AutoValue_BigQueryDynamicTransform.Builder();
+    return new AutoValue_BigQueryDynamicWriteTransform.Builder();
   }
 
   @AutoValue.Builder
@@ -49,7 +50,7 @@ public abstract class BigQueryDynamicTransform
 
     public abstract Builder setProjectId(String datasetId);
 
-    public abstract BigQueryDynamicTransform build();
+    public abstract BigQueryDynamicWriteTransform build();
   }
 
   @Override

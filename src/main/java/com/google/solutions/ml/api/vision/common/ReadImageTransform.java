@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Google LLC
+ * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoValue
+@SuppressWarnings("serial")
 public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<List<String>>> {
   public static final Logger LOG = LoggerFactory.getLogger(ReadImageTransform.class);
 
@@ -67,7 +68,7 @@ public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<
             PubsubIO.readMessagesWithAttributes().fromSubscription(subscriber()))
         .apply("ConvertToGCSUri", ParDo.of(new MapPubSubMessage()))
         .apply("AddRandomKey", WithKeys.of(new Random().nextInt(keyRange())))
-        .apply("BatchImages", ParDo.of(new BatchRequestDoFn(batchSize())));
+        .apply("BatchImages", ParDo.of(new BatchImageRequestDoFn(batchSize())));
   }
 
   public class MapPubSubMessage extends DoFn<PubsubMessage, String> {
