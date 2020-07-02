@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.solutions.ml.api.vision.common;
+package com.google.solutions.ml.api.vision;
 
 import com.google.cloud.vision.v1.Feature;
 import java.util.List;
@@ -41,7 +41,7 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setBatchSize(Integer value);
 
-  @Description("Window Interval -Default to 5 secs")
+  @Description("Window Interval Default to 5 secs")
   @Default.Integer(5)
   Integer getWindowInterval();
 
@@ -52,7 +52,7 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setDatasetName(String value);
 
-  @Description("Project id to be used for DLP Tokenization")
+  @Description("Project id to be used Vision API request")
   String getVisionApiProjectId();
 
   void setVisionApiProjectId(String value);

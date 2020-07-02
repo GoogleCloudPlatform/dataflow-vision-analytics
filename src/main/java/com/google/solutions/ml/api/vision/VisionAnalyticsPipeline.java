@@ -20,7 +20,6 @@ import com.google.solutions.ml.api.vision.common.BigQueryDynamicTransform;
 import com.google.solutions.ml.api.vision.common.ImageRequestDoFn;
 import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
 import com.google.solutions.ml.api.vision.common.ReadImageTransform;
-import com.google.solutions.ml.api.vision.common.VisionAnalyticsPipelineOptions;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;

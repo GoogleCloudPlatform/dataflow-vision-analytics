@@ -31,7 +31,9 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
@@ -48,13 +50,18 @@ public class Util {
 
   public static final Logger LOG = LoggerFactory.getLogger(Util.class);
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
-
+  public static final TupleTag<KV<String, TableRow>> apiResponseSuccessElements =
+      new TupleTag<KV<String, TableRow>>() {};
+  public static final TupleTag<KV<String, ErrorMessageBuilder>> apiResponseFailedElements =
+      new TupleTag<KV<String, ErrorMessageBuilder>>() {};
   public static final String ALLOWED_NOTIFICATION_EVENT_TYPE = String.valueOf("OBJECT_FINALIZE");
   /** Allowed image extension supported by Vision API */
   public static final String FILE_PATTERN = "(^.*\\.(JPEG|jpeg|JPG|jpg|PNG|png|GIF|gif)$)";
   /** Error message if no valid extension found */
   public static final String NO_VALID_EXT_FOUND_ERROR_MESSAGE =
       "File {} does not contain a valid extension";
+
+  public static final String FEATURE_TYPE_NOT_SUPPORTED = "Feature Type {} is not supported";
 
   private static final DateTimeFormatter TIMESTAMP_FORMATTER =
       DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
@@ -119,9 +126,9 @@ public class Util {
 
   public static final Schema positionSchema =
       Stream.of(
-              Schema.Field.of("x", FieldType.INT32).withNullable(true),
-              Schema.Field.of("y", FieldType.INT32).withNullable(true),
-              Schema.Field.of("z", FieldType.INT32).withNullable(true))
+              Schema.Field.of("x", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("y", FieldType.FLOAT).withNullable(true),
+              Schema.Field.of("z", FieldType.FLOAT).withNullable(true))
           .collect(toSchema());
   public static final Schema landmarkSchema =
       Stream.of(
@@ -252,9 +259,7 @@ public class Util {
                 Row.withSchema(fdboundingPolySchema)
                     .addValue(checkFDboundingPolyForFaceAnnotation(annotation))
                     .build(),
-                Row.withSchema(landmarkSchema)
-                    .addValue(checkLandmarksForFaceAnnotation(annotation))
-                    .build())
+                checkLandmarksForFaceAnnotation(annotation))
             .build();
 
     LOG.info("Row {}", row.toString());
@@ -292,7 +297,7 @@ public class Util {
                     .addValue(checkBoundingPolyForCorpHints(annotation))
                     .build())
             .build();
-    //LOG.info("Row {}", row.toString());
+    LOG.debug("Row {}", row.toString());
     return row;
   }
 
@@ -312,7 +317,7 @@ public class Util {
                     .build())
             .build();
 
-    //LOG.info("Row {}", row.toString());
+    LOG.debug("Row {}", row.toString());
     return row;
   }
 

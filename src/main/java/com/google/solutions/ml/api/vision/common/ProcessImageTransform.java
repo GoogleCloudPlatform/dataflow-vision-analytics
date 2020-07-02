@@ -22,6 +22,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,9 +41,15 @@ public class ProcessImageTransform
   public PCollection<KV<String, TableRow>> expand(
       PCollection<KV<String, AnnotateImageResponse>> imageResponse) {
 
-    PCollection<KV<String, TableRow>> outputRow =
-        imageResponse.apply("FindImageTag", ParDo.of(new ImageResponseHandlerDoFn()));
+    PCollectionTuple outputRow =
+        imageResponse.apply(
+            "FindImageTag",
+            ParDo.of(new ImageResponseHandlerDoFn())
+                .withOutputTags(
+                    Util.apiResponseSuccessElements,
+                    TupleTagList.of(Util.apiResponseFailedElements)));
+    outputRow.get(Util.apiResponseSuccessElements);
 
-    return outputRow;
+    return outputRow.get(Util.apiResponseSuccessElements);
   }
 }

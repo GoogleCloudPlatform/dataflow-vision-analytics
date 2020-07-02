@@ -40,45 +40,49 @@ public class ImageResponseHandlerDoFn
       Metrics.counter(ImageResponseHandlerDoFn.class, "NumberOfAnnotationProcessed");
 
   @ProcessElement
-  public void processElement(ProcessContext c) {
-    String imageName = c.element().getKey();
-    AnnotateImageResponse imageResponse = c.element().getValue();
+  public void processElement(
+      @Element KV<String, AnnotateImageResponse> element, MultiOutputReceiver out) {
+    String imageName = element.getKey();
+    AnnotateImageResponse imageResponse = element.getValue();
     imageResponse
         .getAllFields()
         .entrySet()
         .forEach(
-            element -> {
-              String key = element.getKey().getJsonName();
+            response -> {
+              String key = response.getKey().getJsonName();
               try {
                 switch (key) {
                   case "labelAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLabelAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLabelAnnotationsList()) {
                       Row row = Util.transformLabelAnnotations(imageName, annotation);
-                      c.output(
-                          KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION"),
-                              Util.toTableRow(row)));
+                      out.get(Util.apiResponseSuccessElements)
+                          .output(
+                              KV.of(
+                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION"),
+                                  Util.toTableRow(row)));
                     }
                     break;
                   case "landmarkAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLandmarkAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLandmarkAnnotationsList()) {
                       Row row = Util.transformLandmarkAnnotations(imageName, annotation);
-                      c.output(
-                          KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LANDMARK_ANNOTATION"),
-                              Util.toTableRow(row)));
+                      out.get(Util.apiResponseSuccessElements)
+                          .output(
+                              KV.of(
+                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LANDMARK_ANNOTATION"),
+                                  Util.toTableRow(row)));
                     }
                     break;
                   case "logoAnnotations":
                     numberOfAnnotationResponse.inc(imageResponse.getLogoAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLogoAnnotationsList()) {
                       Row row = Util.transformLogoAnnotations(imageName, annotation);
-                      c.output(
-                          KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LOGO_ANNOTATION"),
-                              Util.toTableRow(row)));
+                      out.get(Util.apiResponseSuccessElements)
+                          .output(
+                              KV.of(
+                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LOGO_ANNOTATION"),
+                                  Util.toTableRow(row)));
                     }
                     break;
                   case "faceAnnotations":
@@ -86,10 +90,11 @@ public class ImageResponseHandlerDoFn
 
                     for (FaceAnnotation annotation : imageResponse.getFaceAnnotationsList()) {
                       Row row = Util.transformFaceAnnotations(imageName, annotation);
-                      c.output(
-                          KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_FACE_ANNOTATION"),
-                              Util.toTableRow(row)));
+                      out.get(Util.apiResponseSuccessElements)
+                          .output(
+                              KV.of(
+                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_FACE_ANNOTATION"),
+                                  Util.toTableRow(row)));
                     }
                     break;
                   case "cropHintsAnnotation":
@@ -97,10 +102,12 @@ public class ImageResponseHandlerDoFn
                       CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
                         Row row = Util.transformCropHintsAnnotations(imageName, crophint);
-                        c.output(
-                            KV.of(
-                                Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
-                                Util.toTableRow(row)));
+                        out.get(Util.apiResponseSuccessElements)
+                            .output(
+                                KV.of(
+                                    Util.BQ_TABLE_NAME_MAP.get(
+                                        "BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
+                                    Util.toTableRow(row)));
                       }
                     }
                     break;
@@ -110,34 +117,52 @@ public class ImageResponseHandlerDoFn
                       Row row =
                           Util.transformImagePropertiesAnnotations(
                               imageName, imageResponse.getImagePropertiesAnnotation());
-                      c.output(
-                          KV.of(
-                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION"),
-                              Util.toTableRow(row)));
+                      out.get(Util.apiResponseSuccessElements)
+                          .output(
+                              KV.of(
+                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION"),
+                                  Util.toTableRow(row)));
                     }
                     if (imageResponse.hasCropHintsAnnotation()) {
                       CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
                         Row row = Util.transformCropHintsAnnotations(imageName, crophint);
-                        c.output(
-                            KV.of(
-                                Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
-                                Util.toTableRow(row)));
+                        out.get(Util.apiResponseSuccessElements)
+                            .output(
+                                KV.of(
+                                    Util.BQ_TABLE_NAME_MAP.get(
+                                        "BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
+                                    Util.toTableRow(row)));
                       }
                     }
                     break;
                   default:
-                    ErrorMessageBuilder errorBuilder =
-                        ErrorMessageBuilder.newBuilder()
-                            .setErrorMessage("No Feature Type Found")
-                            .setFileName(imageName)
-                            .setTimeStamp(Util.getTimeStamp())
-                            .build()
-                            .withTableRow(new TableRow());
+                    String errorMessage = String.format("Feature Type %s Not Supported", key);
+                    LOG.error(Util.FEATURE_TYPE_NOT_SUPPORTED, key);
+                    out.get(Util.apiResponseFailedElements)
+                        .output(
+                            KV.of(
+                                imageName,
+                                ErrorMessageBuilder.newBuilder()
+                                    .setErrorMessage(errorMessage)
+                                    .setFileName(imageName)
+                                    .setTimeStamp(Util.getTimeStamp())
+                                    .build()
+                                    .withTableRow(new TableRow())));
                 }
               } catch (Exception e) {
-                LOG.error("Error processing response", e.getMessage());
-                e.printStackTrace();
+                LOG.error(
+                    "Error '{}' processing response for file '{}'", e.getMessage(), imageName);
+                out.get(Util.apiResponseFailedElements)
+                    .output(
+                        KV.of(
+                            imageName,
+                            ErrorMessageBuilder.newBuilder()
+                                .setErrorMessage(e.getMessage())
+                                .setFileName(imageName)
+                                .setTimeStamp(Util.getTimeStamp())
+                                .build()
+                                .withTableRow(new TableRow())));
               }
             });
   }
