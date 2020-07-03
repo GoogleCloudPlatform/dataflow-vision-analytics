@@ -25,8 +25,13 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +73,13 @@ public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<
             PubsubIO.readMessagesWithAttributes().fromSubscription(subscriber()))
         .apply("ConvertToGCSUri", ParDo.of(new MapPubSubMessage()))
         .apply("AddRandomKey", WithKeys.of(new Random().nextInt(keyRange())))
+        .apply(
+                "Fixed Window",
+                Window.<KV<Integer,String>>into(
+                        FixedWindows.of(Duration.standardSeconds(windowInterval())))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO))
         .apply("BatchImages", ParDo.of(new BatchImageRequestDoFn(batchSize())));
   }
 

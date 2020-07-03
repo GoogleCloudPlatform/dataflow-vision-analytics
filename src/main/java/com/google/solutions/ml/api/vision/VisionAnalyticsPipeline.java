@@ -64,6 +64,7 @@ public class VisionAnalyticsPipeline {
                 .setKeyRange(options.getKeyRange())
                 .setSubscriber(options.getSubscriberId())
                 .build());
+    
 
     PCollectionTuple imageRequest =
         imageFiles.apply(

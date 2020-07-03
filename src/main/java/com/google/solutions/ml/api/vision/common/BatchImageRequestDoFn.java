@@ -46,7 +46,7 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
   private final StateSpec<BagState<String>> elementsBag = StateSpecs.bag();
 
   @TimerId("eventTimer")
-  private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+  private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
   @ProcessElement
   public void process(
@@ -55,7 +55,7 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
       @TimerId("eventTimer") Timer eventTimer,
       BoundedWindow w) {
     elementsBag.add(element.getValue());
-    eventTimer.offset(Duration.standardSeconds(1)).setRelative();
+    eventTimer.set(w.maxTimestamp());
   }
 
   @OnTimer("eventTimer")
@@ -69,7 +69,7 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
             element -> {
               boolean clearBuffer = (bufferCount.intValue() == batchSize.intValue());
               if (clearBuffer) {
-                LOG.debug("Clear Buffer {}", rows.size());
+                LOG.info("Clear Buffer {}", rows.size());
                 output.output(rows);
                 rows.clear();
                 bufferCount.set(0);
@@ -82,7 +82,7 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
               }
             });
     if (!rows.isEmpty()) {
-      LOG.debug("Remaining rows {}", rows.size());
+      LOG.info("Remaining rows {}", rows.size());
       output.output(rows);
     }
   }
