@@ -265,7 +265,8 @@ Operation completed over 31.9k objects/4.2 GiB.
 We have processed 31935 images for label and landmark annotation under 30 minutes with the default quota. Let's see if we can gather following stats from these files: 
 #### Top label by file 
 
-```SELECT gcsUri, any_value(description), max(score) as score 
+```
+SELECT gcsUri, any_value(description), max(score) as score 
 FROM `<dataset_name>.LABEL_ANNOTATION`
 GROUP BY  gcsUri
 ORDER BY gcsUri desc
@@ -276,7 +277,8 @@ ORDER BY gcsUri desc
 
 ####  Top 10 labels 
 
- ```SELECT description, count(description) as found, max(score) as score
+ ```
+ SELECT description, count(description) as found, max(score) as score
 FROM `<dataset_name>.LABEL_ANNOTATION`
 GROUP BY description
 ORDER BY found desc limit 10
@@ -298,7 +300,8 @@ ORDER BY count desc limit 10
 
 #### Images with falls
 
-```SELECT  gcsUri, description, max(score) as score
+```
+SELECT  gcsUri, description, max(score) as score
 FROM `<dataset_name>.LANDMARK_ANNOTATION` 
 WHERE lower(description) like '%fall%'
 GROUP BY gcsUri, description
@@ -307,7 +310,8 @@ ORDER BY score desc
 
 ![top_label_by_file](diagram/images_with_falls.png)
 #### Popular Parks
-```SELECT  description, count(description) as count
+```
+SELECT  description, count(description) as count
 FROM `<dataset_name>.LANDMARK_ANNOTATION` 
 WHERE  lower(description) like '%park%'
 GROUP BY description
