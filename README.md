@@ -1,147 +1,318 @@
-# Processing Large Scale Image Files Using Dataflow and Vision API
+# Vision Analytics Solution Using Dataflow, Vision AI & BigQuery ML 
 
-This repo contains a reference implementations for a series of video analytics solutions by using Dataflow & Video AI. The goal is to provide an easy to use end to end solution to process large scale image data by bringing multiple data streams together to drive insight using Vision  AI.
+This repo contains a reference implementation  to gather  insights by inspecting image files stored in GCS. The goal is to provide an easy to use end to end automated solution by using Dataflow, Vision API and BigQueryML.  This is a generic solution to automate  large scale image processing and can be used for variety of use cases like below: 
 
+1. Automated visual inspection solution for manufacturing industry. 
+2. Automated stock and inventory inspection for retail industry.
+3. Automated damage assessment for insurance industry 
 
+Response from  Vision API  is stored in tabular format in BigQuery tables par feature. You can use this dataset as additional features to create ML model by using BigQuery ML or Auto ML. 
+
+## Table of Contents  
+
+* [Reference Architecture](#reference-architecture).      
+* [Solution Details](#solution-details).      
+* [Getting Started](#getting-start).  
+	* [Build](#build).
+	* [Flex Template](#flex-template)
+* [Test & Validate ](#test-and-validate). 
+	* [Automated BigQuery tables by feature type](#test-feature-types)
+	* [Running Lable and Landmark detection  for Fickr30k dataset](#load-test)
+* [Analysis ](#analysis). 
+	* [Top label by file](#top-label-by-file) 
+	* [Top 10 labels](#top-10-labels)  
+	* [Top 10 popular landmark](#top-10-popular-landmark)
+	* [Images with falls](#images-with-falls)
+	* [Popular parks](#popular-parks)
+	
 # Reference Architecture
 
-![ref_arch](diagram/vision_api_ref_arch.png)
+![ref_arch](diagram/vision_analytics_ref_arch.png)
+
+# Solution Details
 
 
-# Setup a Customer Demo
+# Getting Started
 
-1. Clone the repo: 
-
-```
-glogin 
-git clone sso://user/masudhasan/df-vision-api
-cd dataflow-vision-api
-```
-
-2. Run the deploy script. 
+### Build
+#### Gradle Build
 
 ```
-gcloud init
-gcloud config set project [project_id]
-sh deploy.sh
+gradle spotlessApply -DmainClass=com.google.solutions.ml.api.vision.VisionAnalyticsPipeline
+gradle build -DmainClass=com.google.solutions.ml.api.vision.VisionAnalyticsPipeline
 ```
-
-3. Validate the BigQuery Table. Please allow 5-8 mins for dataflow process to complete.
-
+#### Create a input bucket
 
 ```
-// validate raw json mode
+export PROJECT=$(gcloud config get-value project)
+export REGION=[REGION]
+export IMAGES_INPUT_BUCKET=${PROJECT}_IMAGE_ANALYSIS
+gsutil mb -c standard -l ${REGION} gs://${IMAGES_INPUT_BUCKET}
+```
 
-CREATE TEMP FUNCTION json2array(json STRING)
-RETURNS ARRAY<STRING>
-LANGUAGE js AS """
-  return JSON.parse(json).map(x=>JSON.stringify(x));
-"""; 
 
-SELECT * EXCEPT(array_commits),
-  ARRAY(SELECT JSON_EXTRACT_SCALAR(x, '$.description') FROM UNNEST(array_commits) x) descriptions,
-  ARRAY(SELECT JSON_EXTRACT_SCALAR(x, '$.score') FROM UNNEST(array_commits) x) score
-FROM (
-SELECT file_name, json2array(JSON_EXTRACT(raw_json_response, '$')) array_commits
-FROM `[project_id].image_data.VISION_API_FINDINGS_RAW_JSON` 
-WHERE feature_type='labelAnnotations')
+#### Create a notification topic and subscriber 
+```export GCS_NOTIFICATION_TOPIC="gcs-notification-topic"
+gcloud pubsub topics create ${GCS_NOTIFICATION_TOPIC}
+export GCS_NOTIFICATION_SUBSCRIPTION="gcs-notification-subscription"
+gcloud pubsub subscriptions create ${GCS_NOTIFICATION_SUBSCRIPTION} --topic=${GCS_NOTIFICATION_TOPIC}
+```
 
-// validate select column mode
-SELECT file_name, count(description) FROM `[project_id].image_data.VISION_API_FINDINGS_LABEL_DETECTION` group by file_name
-``` 
-# To Learn More About This Solution
-# Before Start
-This pipeline operates in two different modes:  
+#### Create a PubSub notification from GCS bucket
 
-1. By default LABEL_DETECTION is used as feature type. Results are stored in a BQ table in raw JSON format.  Please refer to the screen shot below:
+```
+gsutil notification create -t ${GCS_NOTIFICATION_TOPIC} -f json  gs://${IMAGES_INPUT_BUCKET}
+```
 
- ![default_table_schema](diagram/default_table_schema.png)
+#### Create a BigQuery Dataset
 
- ![sample_data](diagram/default_table_data.png)
+```
+export BIGQUERY_DATASET="video_analytics"
+bq mk -d --location=US ${BIGQUERY_DATASET}
+```
 
-2.  Alternatively, you can override default feature type by specifying a JSON config like below to trigger the pipeline. Please refer to the [sample script](./src/main/resources/sample_scripts/runPipelineDefaultMode.sh) provided as part fo the repo.   
+
+### Flex Template
+####  Create the docker image for Flex template:
+
+```
+gcloud auth configure-docker
+gradle jib --image=gcr.io/${PROJECT}/dataflow-vision-analytics:latest
+
+```
+
+#### Create a bucket to store flex template config: 
+
+```
+export DATAFLOW_TEMPLATE_BUCKET=${PROJECT}_dataflow_template_config
+gsutil mb -c standard -l ${REGION} gs://${DATAFLOW_TEMPLATE_BUCKET}
+
+```
+
+#### Upload the template JSON config file to the bucket:
+
+```
+cat << EOF | gsutil cp - gs://${DATAFLOW_TEMPLATE_BUCKET}/dynamic_template_vision_analytics.json
+{
+  "image": "gcr.io/${PROJECT}/dataflow-vision-analytics:latest",
+  "sdk_info": {"language": "JAVA"}
+}
+EOF
+```
  
+# Test and Validate
+As an example, we will perform two tests:
+
+* Test # 1: Process a small set of files for a number of  feature types to validate if the tables are created with the correct schema automatically.
+* Test # 2: Process >30k images from flickr dataset for Label and Landmark detection. 
+
+## Test # 1
+
+### Automated  BigQuery Table Creation with Vision API Feature Types
+You can trigger the pipeline either by the flex template or by simply using the gradle run command. 
+
+####  Trigger By Flex Template:
 
 ```
-For LANDMARK_DETECTION, you can use   
-{\"featureConfig\":[{\"type\":\"LANDMARK_DETECTION\"}]}	
-```
-```
-For ALL feature types, you can use  
-featureType={\"featureConfig\":[{\"type\":\"LABEL_DETECTION\"},{\"type\":\"FACE_DETECTION\"},{\"type\":\"LANDMARK_DETECTION\"},{\"type\":\"LOGO_DETECTION\"},{\"type\":\"LOGO_DETECTION\"},{\"type\":\"TEXT_DETECTION\"},{\"type\":\"DOCUMENT_TEXT_DETECTION\"},{\"type\":\"SAFE_SEARCH_DETECTION\"},{\"type\":\"IMAGE_PROPERTIES\"},{\"type\":\"CROP_HINTS\"},{\"type\":\"WEB_DETECTION\"},{\"type\":\"PRODUCT_SEARCH\"},{\"type\":\"OBJECT_LOCALIZATION\"}]}
-``` 
-
-Lastly, you can specify a list of columns to override the default JSON output mode in BQ table. For example if you pass below parameter, BQ table will only contain the columns you specified. 
-
-```{\"featureConfig\":[{\"type\":\"LANDMARK_DETECTION\"}]}
-{\"selectedColumns\":[{\"landmarkAnnotations\":\"description,score\"}]}
-```
-
-As output to BQ, you will see a table created like below:
-
-![selected_column_mode_](diagram/selected_columns.png)
-
-## Getting Started
-
-````
-gcloud services enable dataflow
-gcloud services enable bigquery
-gcloud services enable storage_component
-gcloud services enable vision.googleapis.com
-````
-
-### Creating a BigQuery Dataset
-
-```
-bq --location=US mk -d \ 
---description "Vision API Results" \ 
-VISION_API_DATASET
+gcloud beta dataflow flex-template run "vision-analytics-test-1" \
+--project=${PROJECT}\
+--region=${REGION} \
+--template-file-gcs-location=gs://${DATAFLOW_TEMPLATE_BUCKET}/dynamic_template_vision_analytics.json \
+--parameters=<<'EOF'
+^~^autoscalingAlgorithm="THROUGHPUT_BASED_"~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4
+  ~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}~visionApiProjectId=${PROJECT}
+  ~features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION
+  ~datasetName=${BIGQUERY_DATASET}
+  ~streaming=true
+EOF
 ```
 
-### Creating a GCS Bucket and Upload Image Files 
-
-To create a new bucket in a specific region, please follow this [link](https://cloud.google.com/storage/docs/creating-buckets).
-
-* Please note default script below uses sample images so this step is not necessary if you would just like to try it out quickly.
-
-### Run the Pipeline
-Modify this script to add your Project, BigQuery Dataset and GCS path for the image files and run it.
+####  (Optional) Trigger By Gradle Run 
 
 ```
-sh runPipelineDefaultMode.sh
+gradle run -DmainClass=com.google.solutions.ml.api.vision.VisionAnalyticsPipeline -Pargs="--streaming --project=next-demo-2020 --runner=DataflowRunner --subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}
+--visionApiProjectId=${PROJECT}/ --enableStreamingEngine  --features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION "
 ```
-### Validate Dataflow & BigQuery
+
+#### Validate pipeline is successfully started: 
+
+![ref_arch](diagram/vision_dag.png)
+
+#### Copy some test files to the input bucket:
+
+```
+gsutil  cp gs://df-vision-ai-test-data/bali.jpeg gs://${IMAGES_INPUT_BUCKET}
+gsutil  cp gs://df-vision-ai-test-data/faces.jpeg gs://${IMAGES_INPUT_BUCKET}
+gsutil  cp gs://df-vision-ai-test-data/bubble.jpeg gs://${IMAGES_INPUT_BUCKET}
+gsutil  cp gs://df-vision-ai-test-data/setagaya.jpeg gs://${IMAGES_INPUT_BUCKET}
+gsutil  cp gs://df-vision-ai-test-data/st_basils.jpeg gs://${IMAGES_INPUT_BUCKET}
+gsutil  cp gs://df-vision-ai-test-data/goggle_logo_logo.jpg gs://${IMAGES_INPUT_BUCKET}
+```
+
+#### Validate Custom Counter in Dataflow
  
-![df_1](diagram/df_1.png) 
-![df_2](diagram/df_2.png) 
+ ![ref_arch](diagram/short_stat.png)
+ 
+#### Query information schema table to validate tables
+![ref_arch](diagram/information_schema.png)
 
-# Build & Run
-To Build 
-
-```
-gradle build -DmainClass=com.google.solutions.ml.api.vision.VisionTextToBigQueryStreaming  
-```
-
-To Run with default mode: 
+#### Validate Table Schema
 
 ```
-gradle run -DmainClass=com.google.solutions.ml.api.vision.VisionTextToBigQueryStreaming -Pargs=" --streaming --project=<project_id> --runner=DataflowRunner --inputFilePattern=gs://<bucket>/*.* --datasetName=<BQ_Dataset> --visionApiProjectId=<project_id_where_vision_api_enabled> --enableStreamingEngine"
-```
-# Creating a Docker Image For Dataflow Dynamic Template
-Create the image using Jib
-
-```
-gradle jib --image=gcr.io/[project_id]/df-vision-api-pipeline:latest -DmainClass=com.google.solutions.ml.api.vision.VisionTextToBigQueryStreaming 
+bq show --schema --format=prettyjson ${BIGQUERY_DATASET}.LANDMARK_ANNOTATION
 ```
 
-Update the [spec file](./src/main/resources/dynamic_template_vision_api.json) and store it in a GCS bucket. Please use the GCS path as BUCKET_SPEC in the sample scripts.   
+Screen shot to show the schema: 
 
-# Batch Size
+```
+[
+   {
+      "name":"gcsUri",
+      "type":"STRING"
+   },
+   {
+      "name":"feature_type",
+      "type":"STRING"
+   },
+   {
+      "name":"transaction_timestamp",
+      "type":"STRING"
+   },
+   {
+      "name":"mid",
+      "type":"STRING"
+   },
+   {
+      "name":"description",
+      "type":"STRING"
+   },
+   {
+      "name":"score",
+      "type":"FLOAT"
+   },
+   {
+      "fields":[
+         {
+            "fields":[
+               {
+                  "name":"x",
+                  "type":"INTEGER"
+               },
+               {
+                  "name":"y",
+                  "type":"INTEGER"
+               }
+            ],
+            "mode":"REPEATED",
+            "name":"vertices",
+            "type":"RECORD"
+         }
+      ],
+      "name":"boundingPoly",
+      "type":"RECORD"
+   },
+   {
+      "fields":[
+         {
+            "fields":[
+               {
+                  "name":"latitude",
+                  "type":"FLOAT"
+               },
+               {
+                  "name":"longitude",
+                  "type":"FLOAT"
+               }
+            ],
+            "name":"latLon",
+            "type":"RECORD"
+         }
+      ],
+      "mode":"REPEATED",
+      "name":"locations",
+      "type":"RECORD"
+   }
+]
+```
 
-Please check out the [quota and limit](https://cloud.google.com/vision/quotas) for Vision API Image request. 
-Pipeline is defaulted to process 16 images/request in parallel. 
-For large number of files, you may have to increase  1800 request/minute quota in your project.
+![ref_arch](diagram/landmark_annotation.png)
+## Test # 2
+### Fickr30kImage dataset for analysis 
+In this test, we will detect label and landmark from  [public flickr 30k image dataset](https://www.kaggle.com/hsankesara/flickr-image-dataset). 
 
-# Known Issues
-* In selected column mode, a repeated field is not allowed except at the last position of a [field mask](https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/FieldMask)
+#### Trigger the pipeline with additional parameters for optimal performance
 
+```
+gcloud beta dataflow flex-template run "vision-analytics-test-1" --project=next-demo-2020 --region=us-central1 --template-file-gcs-location=gs://df-template-vision/dynamic_template_vison_analytics.json --parameters=^~^autoscalingAlgorithm=THROUGHPUT_BASED~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4~subscriberId=projects/next-demo-2020/subscriptions/vision-events-sub~visionApiProjectId=next-demo-2020~features=LABEL_DETECTION,LANDMARK_DETECTION~datasetName=vision_analytics~streaming=true~batchSize=16~windowInterval=5~keyRange=1024
+```
+ 
+### Copy dataset to input bucket
+ 
+ ```
+ gsutil -m  cp gs://df-vision-ai-test-data/*  gs://${IMAGES_INPUT_BUCKET}
+When fully completed in a minute or so, you will see something like below:
+\ [31.9k/31.9k files][  4.2 GiB/  4.2 GiB] 100% Done  27.6 MiB/s ETA 00:00:00   
+Operation completed over 31.9k objects/4.2 GiB. 
+ ```
+ 
+ Pipeline uses Vision API batch annotation processing. You should see all the files are processed in less than 30 minutes and customer counter it's displayed like below:  Please note how numberOfFiles (31935) matches with out total number of images but numberOfRequests (2k) are less than the number of files as we are batching 16 files /request. Also, it looks like we have found 260k+ labels and 915 landmarks. 
+
+![top_label_by_file](diagram/flickr30k_counter.png)
+
+
+ 
+# Analysis In BigQuery
+We have processed 31935 images for label and landmark annotation under 30 minutes with the default quota. Let's see if we can gather following stats from these files: 
+#### Top label by file 
+
+```SELECT gcsUri, any_value(description), max(score) as score 
+FROM `<dataset_name>.LABEL_ANNOTATION`
+GROUP BY  gcsUri
+ORDER BY gcsUri desc
+```
+
+![top_label_by_file](diagram/top_label_by_file.png)
+
+
+####  Top 10 labels 
+
+ ```SELECT description, count(description) as found, max(score) as score
+FROM `<dataset_name>.LABEL_ANNOTATION`
+GROUP BY description
+ORDER BY found desc limit 10
+ ```
+
+![top_label_by_file](diagram/top10_label.png)
+
+####  Top 10 popular landmark
+
+```
+SELECT description, count(description) as count, max(score) as score
+FROM `<dataset_name>.LANDMARK_ANNOTATION` 
+WHERE length(description)>0
+GROUP BY description 
+ORDER BY count desc limit 10
+```
+
+![top_label_by_file](diagram/top10_popular_landmark.png)
+
+#### Images with falls
+
+```SELECT  gcsUri, description, max(score) as score
+FROM `<dataset_name>.LANDMARK_ANNOTATION` 
+WHERE lower(description) like '%fall%'
+GROUP BY gcsUri, description
+ORDER BY score desc
+```
+
+![top_label_by_file](diagram/images_with_falls.png)
+#### Popular Parks
+```SELECT  description, count(description) as count
+FROM `<dataset_name>.LANDMARK_ANNOTATION` 
+WHERE  lower(description) like '%park%'
+GROUP BY description
+ORDER BY count desc limit 10
+```
+
+
+![top_label_by_file](diagram/popular_parks.png)

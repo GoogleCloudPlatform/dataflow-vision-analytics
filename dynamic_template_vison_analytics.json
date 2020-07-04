@@ -1,0 +1,4 @@
+{   
+    "image": "gcr.io/next-demo-2020/dataflow-vision-analytics",
+    "sdk_info": {"language": "JAVA"}
+}

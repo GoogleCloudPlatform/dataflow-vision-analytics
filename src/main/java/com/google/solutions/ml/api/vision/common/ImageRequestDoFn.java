@@ -26,8 +26,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
@@ -49,10 +47,6 @@ public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImag
 
   private List<Feature> featureList = new ArrayList<>();
   private ImageAnnotatorClient visionApiClient;
-  private final Counter numberOfRequest =
-      Metrics.counter(ImageRequestDoFn.class, "NumberOfImageRequest");
-  private final Counter numberOfResponse =
-      Metrics.counter(ImageRequestDoFn.class, "NumberOfImageResponse");
 
   public ImageRequestDoFn(List<Feature.Type> featureTypes) {
     featureTypes.forEach(
@@ -97,7 +91,6 @@ public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImag
     List<AnnotateImageResponse> responses =
         visionApiClient.batchAnnotateImages(requests).getResponsesList();
 
-    numberOfRequest.inc(requests.size());
     for (AnnotateImageResponse res : responses) {
       if (res.hasError()) {
         out.get(failureTag)
@@ -111,7 +104,6 @@ public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImag
       } else {
         String imageName =
             requests.get(index.getAndIncrement()).getImage().getSource().getImageUri();
-        numberOfResponse.inc(1);
         out.get(successTag).output(KV.of(imageName, res));
       }
     }

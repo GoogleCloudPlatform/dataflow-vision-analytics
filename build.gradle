@@ -30,7 +30,7 @@ buildscript {
     		
     	dependencies {
             classpath "net.ltgt.gradle:gradle-apt-plugin:0.19"
-            classpath "gradle.plugin.com.google.cloud.tools:jib-gradle-plugin:1.4.0"
+            classpath "gradle.plugin.com.google.cloud.tools:jib-gradle-plugin:2.4.0"
             classpath "com.diffplug.spotless:spotless-plugin-gradle:3.24.2"
         }
         
@@ -79,6 +79,9 @@ mainClassName = System.getProperty('mainClass', 'com.google.solutions.ml.api.vis
 jib {
   from {
     image = 'gcr.io/dataflow-templates-base/java8-template-launcher-base:latest'
+  }
+  to {
+        credHelper = 'gcloud'
   }
   container {
     appRoot = '/template/df-vision-api-template'

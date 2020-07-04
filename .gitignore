@@ -1,3 +1,9 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+
 # Compiled class file
 *.class
 
@@ -7,21 +13,13 @@
 # BlueJ files
 *.ctxt
 
+# Service account private key
+service-account.json
+
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
-# Compiled class file
-*.class
 *.csv
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
 
 # Package Files #
 *.jar
@@ -32,13 +30,11 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
+deid-template.json
 *#
 *.iml
 *.ipr
 *.iws
-*.jar
 *.sw?
 *~
 .#*
@@ -46,7 +42,6 @@ hs_err_pid*
 .DS_Store
 .classpath
 .factorypath
-.gradle
 .idea
 .metadata
 .project
@@ -59,12 +54,10 @@ MANIFEST.MF
 _site/
 activemq-data
 bin
-build
 build.log
 dependency-reduced-pom.xml
 dump.rdb
 interpolated*.xml
-lib/
 manifest.yml
 overridedb.*
 settings.xml
@@ -73,15 +66,9 @@ transaction-logs
 .flattened-pom.xml
 secrets.yml
 .gradletasknamecache
-.sts4-cache# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+
 .apt_generated
+**/.sts4-cache/*

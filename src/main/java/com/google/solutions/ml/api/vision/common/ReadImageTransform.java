@@ -21,6 +21,8 @@ import java.util.Random;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -39,6 +41,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("serial")
 public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<List<String>>> {
   public static final Logger LOG = LoggerFactory.getLogger(ReadImageTransform.class);
+  private final Counter numberOfFiles = Metrics.counter(ReadImageTransform.class, "numberOfFiles");
 
   public abstract Integer windowInterval();
 
@@ -74,12 +77,12 @@ public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<
         .apply("ConvertToGCSUri", ParDo.of(new MapPubSubMessage()))
         .apply("AddRandomKey", WithKeys.of(new Random().nextInt(keyRange())))
         .apply(
-                "Fixed Window",
-                Window.<KV<Integer,String>>into(
-                        FixedWindows.of(Duration.standardSeconds(windowInterval())))
-                    .triggering(AfterWatermark.pastEndOfWindow())
-                    .discardingFiredPanes()
-                    .withAllowedLateness(Duration.ZERO))
+            "Fixed Window",
+            Window.<KV<Integer, String>>into(
+                    FixedWindows.of(Duration.standardSeconds(windowInterval())))
+                .triggering(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO))
         .apply("BatchImages", ParDo.of(new BatchImageRequestDoFn(batchSize())));
   }
 
@@ -94,6 +97,8 @@ public abstract class ReadImageTransform extends PTransform<PBegin, PCollection<
         String fileName = uri.toString();
         if (fileName.matches(Util.FILE_PATTERN)) {
           c.output(fileName);
+          numberOfFiles.inc();
+
           LOG.info("File Output {}", fileName);
         } else {
           LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);

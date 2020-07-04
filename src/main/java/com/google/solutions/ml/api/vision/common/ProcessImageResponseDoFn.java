@@ -38,8 +38,18 @@ import org.slf4j.LoggerFactory;
 public class ProcessImageResponseDoFn
     extends DoFn<KV<String, AnnotateImageResponse>, KV<String, TableRow>> {
   public static final Logger LOG = LoggerFactory.getLogger(ImageRequestDoFn.class);
-  private final Counter numberOfAnnotationResponse =
-      Metrics.counter(ProcessImageResponseDoFn.class, "NumberOfAnnotationProcessed");
+  private final Counter numberOfLabelAnnotations =
+      Metrics.counter(ProcessImageResponseDoFn.class, "numberOfLabelAnnotations");
+  private final Counter numberOfLandmarkAnnotations =
+      Metrics.counter(ProcessImageResponseDoFn.class, "numberOfLandmarkAnnotations");
+  private final Counter numberOfLogoAnnotations =
+      Metrics.counter(ProcessImageResponseDoFn.class, "numberOfLogoAnnotations");
+  private final Counter numberOfCropHintsAnnotations =
+      Metrics.counter(ProcessImageResponseDoFn.class, "numberOfCropHintsAnnotations");
+  private final Counter numberOfFaceAnnotations =
+      Metrics.counter(ProcessImageResponseDoFn.class, "numberOfFaceAnnotations");
+  private final Counter numberOfImageProperties =
+      Metrics.counter(ProcessImageResponseDoFn.class, "numberOfImageProperties");
 
   @ProcessElement
   public void processElement(
@@ -55,7 +65,7 @@ public class ProcessImageResponseDoFn
               try {
                 switch (key) {
                   case "labelAnnotations":
-                    numberOfAnnotationResponse.inc(imageResponse.getLabelAnnotationsCount());
+                    numberOfLabelAnnotations.inc(imageResponse.getLabelAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLabelAnnotationsList()) {
                       Row row = Util.transformLabelAnnotations(imageName, annotation);
                       out.get(Util.apiResponseSuccessElements)
@@ -66,7 +76,7 @@ public class ProcessImageResponseDoFn
                     }
                     break;
                   case "landmarkAnnotations":
-                    numberOfAnnotationResponse.inc(imageResponse.getLandmarkAnnotationsCount());
+                    numberOfLandmarkAnnotations.inc(imageResponse.getLandmarkAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLandmarkAnnotationsList()) {
                       Row row = Util.transformLandmarkAnnotations(imageName, annotation);
                       out.get(Util.apiResponseSuccessElements)
@@ -77,7 +87,7 @@ public class ProcessImageResponseDoFn
                     }
                     break;
                   case "logoAnnotations":
-                    numberOfAnnotationResponse.inc(imageResponse.getLogoAnnotationsCount());
+                    numberOfLogoAnnotations.inc(imageResponse.getLogoAnnotationsCount());
                     for (EntityAnnotation annotation : imageResponse.getLogoAnnotationsList()) {
                       Row row = Util.transformLogoAnnotations(imageName, annotation);
                       out.get(Util.apiResponseSuccessElements)
@@ -88,7 +98,7 @@ public class ProcessImageResponseDoFn
                     }
                     break;
                   case "faceAnnotations":
-                    numberOfAnnotationResponse.inc(imageResponse.getFaceAnnotationsCount());
+                    numberOfFaceAnnotations.inc(imageResponse.getFaceAnnotationsCount());
 
                     for (FaceAnnotation annotation : imageResponse.getFaceAnnotationsList()) {
                       Row row = Util.transformFaceAnnotations(imageName, annotation);
@@ -103,6 +113,7 @@ public class ProcessImageResponseDoFn
                     if (imageResponse.hasCropHintsAnnotation()) {
                       CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
+                        numberOfCropHintsAnnotations.inc();
                         Row row = Util.transformCropHintsAnnotations(imageName, crophint);
                         out.get(Util.apiResponseSuccessElements)
                             .output(
@@ -116,6 +127,7 @@ public class ProcessImageResponseDoFn
 
                   case "imagePropertiesAnnotation":
                     if (imageResponse.hasImagePropertiesAnnotation()) {
+                      numberOfImageProperties.inc();
                       Row row =
                           Util.transformImagePropertiesAnnotations(
                               imageName, imageResponse.getImagePropertiesAnnotation());
@@ -128,6 +140,8 @@ public class ProcessImageResponseDoFn
                     if (imageResponse.hasCropHintsAnnotation()) {
                       CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
+                        numberOfCropHintsAnnotations.inc();
+
                         Row row = Util.transformCropHintsAnnotations(imageName, crophint);
                         out.get(Util.apiResponseSuccessElements)
                             .output(

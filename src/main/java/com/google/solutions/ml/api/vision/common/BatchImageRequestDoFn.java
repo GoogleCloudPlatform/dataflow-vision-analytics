@@ -18,6 +18,8 @@ package com.google.solutions.ml.api.vision.common;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -28,14 +30,14 @@ import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("serial")
 public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String>> {
   public static final Logger LOG = LoggerFactory.getLogger(BatchImageRequestDoFn.class);
-
+  private final Counter numberOfRequests =
+      Metrics.counter(BatchImageRequestDoFn.class, "numberOfRequests");
   private Integer batchSize;
 
   public BatchImageRequestDoFn(Integer batchSize) {
@@ -71,6 +73,7 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
               if (clearBuffer) {
                 LOG.info("Clear Buffer {}", rows.size());
                 output.output(rows);
+                numberOfRequests.inc();
                 rows.clear();
                 bufferCount.set(0);
                 rows.add(element);
@@ -83,6 +86,7 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
             });
     if (!rows.isEmpty()) {
       LOG.info("Remaining rows {}", rows.size());
+      numberOfRequests.inc();
       output.output(rows);
     }
   }
