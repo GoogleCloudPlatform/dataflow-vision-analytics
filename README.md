@@ -1,24 +1,18 @@
-# Vision Analytics Solution Using Dataflow, Vision AI & BigQuery ML 
+# Vision Analytics Solution Using Dataflow & Vision AI 
 
-This repo contains a reference implementation  to gather  insights by inspecting image files stored in GCS. The goal is to provide an easy to use end to end automated solution by using Dataflow, Vision API and BigQueryML.  This is a generic solution to automate  large scale image processing and can be used for variety of use cases like below: 
-
-1. Automated visual inspection solution for manufacturing industry. 
-2. Automated stock and inventory inspection for retail industry.
-3. Automated damage assessment for insurance industry 
-
-Response from  Vision API  is stored in tabular format in BigQuery tables par feature. You can use this dataset as additional features to create ML model by using BigQuery ML or Auto ML. 
+This repo contains a reference implementation to automatically inspect  large scale image files from a GCS bucket to derive insights.  The goal is to provide an easy to use end to end automated solution by using Dataflow and Vision API.  Response from  Vision API  is stored in BigQuery tables based on feature type and can be used easily as additional features to create model by using BigQuery ML or Auto ML. 
 
 ## Table of Contents  
 
-* [Reference Architecture](#reference-architecture).      
-* [Solution Details](#solution-details).      
-* [Getting Started](#getting-start).  
-	* [Build](#build).
+* [Reference Architecture](#reference-architecture)  
+* [Solution Details](#solution-details)
+* [Getting Started](#getting-start)
+	* [Build](#build)
 	* [Flex Template](#flex-template)
-* [Test & Validate ](#test-and-validate). 
+* [Test & Validate ](#test-and-validate)
 	* [Automated BigQuery tables by feature type](#test-feature-types)
 	* [Running Lable and Landmark detection  for Fickr30k dataset](#load-test)
-* [Analysis ](#analysis). 
+* [Analysis ](#analysis)
 	* [Top label by file](#top-label-by-file) 
 	* [Top 10 labels](#top-10-labels)  
 	* [Top 10 popular landmark](#top-10-popular-landmark)
@@ -30,7 +24,18 @@ Response from  Vision API  is stored in tabular format in BigQuery tables par fe
 ![ref_arch](diagram/vision_analytics_ref_arch.png)
 
 # Solution Details
+Manufacturers are facing challenging business disruptions due to the current market environment.  Visual inspection solution is designed to address major pain points for manufacturers looking to improve quality control process or monitor workers safety while reducing cost. This is a generic solution to automate inspection process by using Vision AI and Dataflow.  Solution works as below:
 
+1. Images are uploaded in a GCS bucket from source systems. 
+2. An automated  notification is sent out to PubSub topic for processing. 
+3. Dataflow pipeline process the image file based on the configurations provided:
+	a) Features: List of Vision API features to use for processing
+	b) BatchSize: Maximum 16 images /call. This helps to process large scale image files in a performance optimal manner. 
+	c) Parallel Processing: Control the number of parallel calls to API to leverage number of quotas (concurrent api calls) for Vision API.
+	d) BigQuery Dataset: Based on the response tables will be created automatically in this dataset. 
+4. Dataflow calls the Vision API and store the response in BigQuery for each feature type.
+
+Note: Auto ML integration for this solution will be available in future. 
 
 # Getting Started
 
