@@ -1,6 +1,6 @@
 # Vision Analytics Solution Using Dataflow & Vision AI 
 
-This repo contains a reference implementation to automatically inspect  large scale image files from a GCS bucket to derive insights.  The goal is to provide an easy to use end to end automated solution by using Dataflow and Vision API.  Response from  Vision API  is stored in BigQuery tables based on feature type and can be used easily as additional features to create model by using BigQuery ML or Auto ML. 
+This repo contains a reference implementation to derive insights from large scale image files stored in a GCS bucket.  The goal is to provide an easy to use end to end automated solution by using Dataflow and Vision API.  Response from  Vision API  is stored in BigQuery tables based on feature type and can be used as additional features to create machine learning model by using BigQuery ML or Auto ML. 
 
 ## Table of Contents  
 
@@ -10,8 +10,8 @@ This repo contains a reference implementation to automatically inspect  large sc
 	* [Build](#build)
 	* [Flex Template](#flex-template)
 * [Test & Validate ](#test-and-validate)
-	* [Automated BigQuery tables by feature type](#test-feature-types)
-	* [Running Lable and Landmark detection  for Fickr30k dataset](#load-test)
+	* [Automated BigQuery tables by feature type](#test-1)
+	* [Running label and landmark detection  for Fickr30k dataset](#test-2)
 * [Analysis ](#analysis)
 	* [Top label by file](#top-label-by-file) 
 	* [Top 10 labels](#top-10-labels)  
@@ -111,7 +111,7 @@ As an example, we will perform two tests:
 * Test # 1: Process a small set of files for a number of  feature types to validate if the tables are created with the correct schema automatically.
 * Test # 2: Process >30k images from flickr dataset for Label and Landmark detection. 
 
-## Test # 1
+## Test 1
 
 ### Automated  BigQuery Table Creation with Vision API Feature Types
 You can trigger the pipeline either by the flex template or by simply using the gradle run command. 
@@ -241,7 +241,7 @@ Screen shot to show the schema:
 ```
 
 ![ref_arch](diagram/landmark_annotation.png)
-## Test # 2
+## Test 2
 ### Fickr30kImage dataset for analysis 
 In this test, we will detect label and landmark from  [public flickr 30k image dataset](https://www.kaggle.com/hsankesara/flickr-image-dataset). 
 
