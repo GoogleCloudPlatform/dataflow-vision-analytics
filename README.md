@@ -21,7 +21,7 @@ This repo contains a reference implementation to derive insights from large scal
 	
 # Reference Architecture
 
-![ref_arch](diagram/vision_analytics_ref_arch.png)
+![ref_arch](diagram/vision_analytics_dataflow_visionai.png)
 
 # Solution Details
 Manufacturers are facing challenging business disruptions due to the current market environment.  Visual inspection solution is designed to address major pain points for manufacturers looking to improve quality control process or monitor workers safety while reducing cost. This is a generic solution to automate inspection process by using Vision AI and Dataflow.  Solution works as below:
