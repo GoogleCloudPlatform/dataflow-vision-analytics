@@ -13,10 +13,10 @@ This repo contains a reference implementation to derive insights from large scal
 	* [Automated BigQuery tables by feature type](#test-1)
 	* [Running label and landmark detection  for Fickr30k dataset](#test-2)
 * [Analysis ](#analysis)
-	* [Top label by file](#top-label-by-file) 
+	* [Top label for each file](#top-label-by-file) 
 	* [Top 10 labels](#top-10-labels)  
-	* [Top 10 popular landmark](#top-10-popular-landmark)
-	* [Images with falls](#images-with-falls)
+	* [Top 10 popular landmarks](#top-10-popular-landmarks)
+	* [Images with water falls](#images-with-falls)
 	* [Popular parks](#popular-parks)
 	
 # Reference Architecture
