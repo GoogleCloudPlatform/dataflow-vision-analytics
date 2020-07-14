@@ -159,6 +159,12 @@ gsutil  cp gs://df-vision-ai-test-data/goggle_logo_logo.jpg gs://${IMAGES_INPUT_
  ![ref_arch](diagram/short_stat.png)
  
 #### Query information schema table to validate tables
+
+```
+SELECT * FROM vision_analytics.INFORMATION_SCHEMA.TABLES;
+
+```
+
 ![ref_arch](diagram/information_schema.png)
 
 #### Validate Table Schema
@@ -291,7 +297,7 @@ ORDER BY found desc limit 10
 
 ![top_label_by_file](diagram/top10_label.png)
 
-####  Top 10 popular landmark
+####  Top 10 popular landmarks
 
 ```
 SELECT description, count(description) as count, max(score) as score
