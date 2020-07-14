@@ -72,7 +72,7 @@ gsutil notification create -t ${GCS_NOTIFICATION_TOPIC} -f json  gs://${IMAGES_I
 #### Create a BigQuery Dataset
 
 ```
-export BIGQUERY_DATASET="video_analytics"
+export BIGQUERY_DATASET="vision_analytics"
 bq mk -d --location=US ${BIGQUERY_DATASET}
 ```
 
@@ -119,24 +119,22 @@ You can trigger the pipeline either by the flex template or by simply using the 
 ####  Trigger By Flex Template:
 
 ```
-gcloud beta dataflow flex-template run "vision-analytics-test-1" \
+gcloud beta dataflow flex-template run "vision-analytics-1" \
 --project=${PROJECT}\
 --region=${REGION} \
 --template-file-gcs-location=gs://${DATAFLOW_TEMPLATE_BUCKET}/dynamic_template_vision_analytics.json \
---parameters=<<'EOF'
-^~^autoscalingAlgorithm="THROUGHPUT_BASED_"~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4
-  ~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}~visionApiProjectId=${PROJECT}
-  ~features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION
+--parameters=^~^autoscalingAlgorithm="THROUGHPUT_BASED_"~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4
+~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}~visionApiProjectId=${PROJECT}  ~features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION
   ~datasetName=${BIGQUERY_DATASET}
   ~streaming=true
-EOF
 ```
 
 ####  (Optional) Trigger By Gradle Run 
 
 ```
-gradle run -DmainClass=com.google.solutions.ml.api.vision.VisionAnalyticsPipeline -Pargs="--streaming --project=next-demo-2020 --runner=DataflowRunner --subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}
---visionApiProjectId=${PROJECT}/ --enableStreamingEngine  --features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION "
+gradle run -DmainClass=com.google.solutions.ml.api.vision.VisionAnalyticsPipeline -Pargs="--streaming --project=${PROJECT}\
+ --runner=DataflowRunner --subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION} \
+--visionApiProjectId=${PROJECT}/ --enableStreamingEngine \ --features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION "
 ```
 
 #### Validate pipeline is successfully started: 
@@ -151,7 +149,7 @@ gsutil  cp gs://df-vision-ai-test-data/faces.jpeg gs://${IMAGES_INPUT_BUCKET}
 gsutil  cp gs://df-vision-ai-test-data/bubble.jpeg gs://${IMAGES_INPUT_BUCKET}
 gsutil  cp gs://df-vision-ai-test-data/setagaya.jpeg gs://${IMAGES_INPUT_BUCKET}
 gsutil  cp gs://df-vision-ai-test-data/st_basils.jpeg gs://${IMAGES_INPUT_BUCKET}
-gsutil  cp gs://df-vision-ai-test-data/goggle_logo_logo.jpg gs://${IMAGES_INPUT_BUCKET}
+gsutil  cp gs://df-vision-ai-test-data/google_logo.jpg gs://${IMAGES_INPUT_BUCKET}
 ```
 
 #### Validate Custom Counter in Dataflow
@@ -254,7 +252,11 @@ In this test, we will detect label and landmark from  [public flickr 30k image d
 #### Trigger the pipeline with additional parameters for optimal performance
 
 ```
-gcloud beta dataflow flex-template run "vision-analytics-test-1" --project=next-demo-2020 --region=us-central1 --template-file-gcs-location=gs://df-template-vision/dynamic_template_vison_analytics.json --parameters=^~^autoscalingAlgorithm=THROUGHPUT_BASED~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4~subscriberId=projects/next-demo-2020/subscriptions/vision-events-sub~visionApiProjectId=next-demo-2020~features=LABEL_DETECTION,LANDMARK_DETECTION~datasetName=vision_analytics~streaming=true~batchSize=16~windowInterval=5~keyRange=1024
+gcloud beta dataflow flex-template run "vision-analytics-2" --project=${PROJECT_ID} --region=${REGION} \ --template-file-gcs-location=gs://${DATAFLOW_TEMPLATE_BUCKET}/dynamic_template_vision_analytics.json \ --parameters=^~^autoscalingAlgorithm=THROUGHPUT_BASED~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4 \
+~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION} \
+~visionApiProjectId=${PROJECT}~features=LABEL_DETECTION,LANDMARK_DETECTION \
+~datasetName=${BIGQUERY_DATASET}~streaming=true~batchSize=16~windowInterval=5~keyRange=1024
+
 ```
  
 ### Copy dataset to input bucket
