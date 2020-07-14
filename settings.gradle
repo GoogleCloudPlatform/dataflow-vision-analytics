@@ -15,4 +15,4 @@ include 'api'
 include 'services:webservice'
 */
 
-rootProject.name = 'df-vision-api'
+rootProject.name = 'dataflow-vision-analytics'
