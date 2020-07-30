@@ -51,10 +51,6 @@ public class Util {
 
   public static final Logger LOG = LoggerFactory.getLogger(Util.class);
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
-  public static final TupleTag<KV<String, TableRow>> apiResponseSuccessElements =
-      new TupleTag<KV<String, TableRow>>() {};
-  public static final TupleTag<KV<String, TableRow>> apiResponseFailedElements =
-      new TupleTag<KV<String, TableRow>>() {};
   public static final String ALLOWED_NOTIFICATION_EVENT_TYPE = String.valueOf("OBJECT_FINALIZE");
   /** Allowed image extension supported by Vision API */
   public static final String FILE_PATTERN = "(^.*\\.(JPEG|jpeg|JPG|jpg|PNG|png|GIF|gif)$)";

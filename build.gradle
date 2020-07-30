@@ -66,9 +66,6 @@ def javaLicenseHeader = """/*
  */
 """
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-applicationDefaultJvmArgs = ['-Xms4g', '-Xmx16g']
 mainClassName = System.getProperty('mainClass', 'com.google.solutions.ml.api.vision.VisionAnalyticsPipeline')
 
 jib {
@@ -87,11 +84,6 @@ jib {
 }
 group 'com.google.solution'
 version '0.1.0'
-
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
-applicationDefaultJvmArgs = ['-Xms4g', '-Xmx16g']
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
@@ -142,7 +134,7 @@ run {
 }
 // Spotless configuration
 
-def enableSpotlessCheck = project.hasProperty('enableSpotlessCheck') && project.enableSpotlessCheck == 'true'
+Boolean enableSpotlessCheck = project.hasProperty('enableSpotlessCheck') && project.enableSpotlessCheck == 'true'
 spotless {
   enforceCheck enableSpotlessCheck
   java {

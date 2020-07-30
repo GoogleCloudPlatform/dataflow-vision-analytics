@@ -29,35 +29,35 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setSubscriberId(String value);
 
-  @Description("key range")
+  @Description("Key range")
   @Default.Integer(1)
   Integer getKeyRange();
 
   void setKeyRange(Integer value);
 
-  @Description("Image Batch Size")
+  @Description("Image batch size")
   @Default.Integer(1)
   Integer getBatchSize();
 
   void setBatchSize(Integer value);
 
-  @Description("Window Interval Default to 5 secs")
+  @Description("Window interval in secoonds (default is 5)")
   @Default.Integer(5)
   Integer getWindowInterval();
 
   void setWindowInterval(Integer value);
 
-  @Description("Big Query dataset")
+  @Description("BigQuery dataset")
   String getDatasetName();
 
   void setDatasetName(String value);
 
-  @Description("Project id to be used Vision API request")
+  @Description("Project id to be used for Vision API requests")
   String getVisionApiProjectId();
 
   void setVisionApiProjectId(String value);
 
-  @Description("Features")
+  @Description("Vision API features to use")
   List<Feature.Type> getFeatures();
 
   void setFeatures(List<Feature.Type> value);

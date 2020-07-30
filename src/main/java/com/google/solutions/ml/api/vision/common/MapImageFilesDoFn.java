@@ -36,7 +36,7 @@ public class MapImageFilesDoFn extends DoFn<ReadableFile, KV<String, String>> {
   private static final String IMAGE_PATTERN = "([^\\s]+(\\.(?i)(/bmp|jpg|jpeg|gif|png))$)";
   /** Error message if no valid extension found */
   private static final String NO_VALID_EXT_FOUND_ERROR_MESSAGE =
-      "File {} does not contain a valid extension";
+      "File {} does not contain a valid extension (.bmp, .jpg, .jpeg, .gif, or .png)";
 
   @ProcessElement
   public void processElement(@Element ReadableFile file, MultiOutputReceiver out) {

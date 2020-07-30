@@ -44,6 +44,7 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
     this.batchSize = batchSize;
   }
 
+  // TODO: never used. Check it out.
   @StateId("elementsBag")
   private final StateSpec<BagState<String>> elementsBag = StateSpecs.bag();
 
@@ -63,6 +64,7 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
   @OnTimer("eventTimer")
   public void onTimer(
       @StateId("elementsBag") BagState<String> elementsBag, OutputReceiver<List<String>> output) {
+    // TODO: does it need to be atomic?
     AtomicInteger bufferCount = new AtomicInteger();
     List<String> rows = new ArrayList<>();
     elementsBag
@@ -76,13 +78,9 @@ public class BatchImageRequestDoFn extends DoFn<KV<Integer, String>, List<String
                 numberOfRequests.inc();
                 rows.clear();
                 bufferCount.set(0);
-                rows.add(element);
-                bufferCount.getAndAdd(1);
-
-              } else {
-                rows.add(element);
-                bufferCount.getAndAdd(1);
               }
+              rows.add(element);
+              bufferCount.getAndAdd(1);
             });
     if (!rows.isEmpty()) {
       LOG.info("Remaining rows {}", rows.size());

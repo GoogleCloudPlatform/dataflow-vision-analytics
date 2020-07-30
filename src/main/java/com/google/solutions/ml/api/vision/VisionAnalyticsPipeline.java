@@ -15,29 +15,44 @@
  */
 package com.google.solutions.ml.api.vision;
 
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.vision.v1.AnnotateImageResponse;
+import com.google.solutions.ml.api.vision.common.AnnotateImagesDoFn;
 import com.google.solutions.ml.api.vision.common.BigQueryDynamicWriteTransform;
-import com.google.solutions.ml.api.vision.common.ImageRequestDoFn;
-import com.google.solutions.ml.api.vision.common.ProcessImageTransform;
-import com.google.solutions.ml.api.vision.common.ReadImageTransform;
-import java.util.List;
+import com.google.solutions.ml.api.vision.common.ProcessImageResponseDoFn;
+import com.google.solutions.ml.api.vision.common.PubSubNotificationToGCSUriDoFn;
+import com.google.solutions.ml.api.vision.common.Util;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TupleTagList;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class VisionAnalyticsPipeline {
+
   public static final Logger LOG = LoggerFactory.getLogger(VisionAnalyticsPipeline.class);
 
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
-   * blocking execution is required, use the {@link
-   * VisionAnalyticsPipeline#run(VisionAnalyticsPipelineOptions)} method to start the pipeline and
-   * invoke {@code result.waitUntilFinish()} on the {@link PipelineResult}
+   * blocking execution is required, use the {@link VisionAnalyticsPipeline#run(VisionAnalyticsPipelineOptions)}
+   * method to start the pipeline and invoke {@code result.waitUntilFinish()} on the {@link
+   * PipelineResult}
    *
    * @param args The command-line arguments to the pipeline.
    */
@@ -51,36 +66,72 @@ public class VisionAnalyticsPipeline {
     run(options);
   }
 
+  /**
+   * Runs the pipeline
+   *
+   * @return result
+   */
   public static PipelineResult run(VisionAnalyticsPipelineOptions options) throws Exception {
+    final Counter totalFiles = Metrics.counter(VisionAnalyticsPipeline.class, "totalFiles");
+    final Counter rejectedFiles = Metrics
+        .counter(VisionAnalyticsPipeline.class, "rejectedFiles");
+    final Counter processedFiles = Metrics
+        .counter(VisionAnalyticsPipeline.class, "rejectedFiles");
 
     Pipeline p = Pipeline.create(options);
 
-    PCollection<List<String>> imageFiles =
-        p.apply(
-            "ReadTransform",
-            ReadImageTransform.newBuilder()
-                .setBatchSize(options.getBatchSize())
-                .setWindowInterval(options.getWindowInterval())
-                .setKeyRange(options.getKeyRange())
-                .setSubscriber(options.getSubscriberId())
-                .build());
+    PCollection<String> imageFileUris;
+    if (options.getSubscriberId() != null) {
+      PCollection<PubsubMessage> pubSubNotifications = p.begin().apply("Read Pub/Sub",
+          PubsubIO.readMessagesWithAttributes().fromSubscription(options.getSubscriberId()));
+      imageFileUris = pubSubNotifications
+          .apply(ParDo.of(new PubSubNotificationToGCSUriDoFn()))
+          .apply(
+              "Fixed Window",
+              Window.<String>into(
+                  FixedWindows.of(Duration.standardSeconds(options.getWindowInterval())))
+                  .triggering(AfterWatermark.pastEndOfWindow())
+                  .discardingFiredPanes()
+                  .withAllowedLateness(Duration.ZERO));
+    } else {
+      throw new RuntimeException("Either subscriber id or the file list should be provided.");
+    }
 
-    PCollectionTuple imageRequest =
-        imageFiles.apply(
-            "ImageRequest",
-            ParDo.of(new ImageRequestDoFn(options.getFeatures()))
-                .withOutputTags(
-                    ImageRequestDoFn.successTag, TupleTagList.of(ImageRequestDoFn.failureTag)));
+    PCollection<String> filteredImages = imageFileUris
+        .apply(Filter.by(new SerializableFunction<String, Boolean>() {
+          @Override
+          public Boolean apply(String fileName) {
+            totalFiles.inc();
+            if (fileName.matches(Util.FILE_PATTERN)) {
+              return true;
+            }
+            LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
+            rejectedFiles.inc();
+            return false;
+          }
+        }));
 
-    imageRequest
-        .get(ImageRequestDoFn.successTag)
-        .apply("ProcessResponse", new ProcessImageTransform())
-        .apply(
-            "WriteToBq",
-            BigQueryDynamicWriteTransform.newBuilder()
-                .setDatasetId(options.getDatasetName())
-                .setProjectId(options.getVisionApiProjectId())
-                .build());
+    PCollection<Iterable<String>> batchedImageURIs = filteredImages
+        .apply(WithKeys.of("1"))
+        .apply(GroupIntoBatches.ofSize(options.getBatchSize()))
+        .apply(Values.create());
+
+    PCollection<KV<String, AnnotateImageResponse>> annotatedImages =
+        batchedImageURIs.apply(
+            "Annotate Images",
+            ParDo.of(new AnnotateImagesDoFn(options.getFeatures())));
+
+    PCollection<KV<String, TableRow>> annotationOutcome =
+        annotatedImages.apply(
+            "Process Response",
+            ParDo.of(new ProcessImageResponseDoFn()));
+
+    annotationOutcome.apply(
+        "WriteToBq",
+        BigQueryDynamicWriteTransform.newBuilder()
+            .setDatasetId(options.getDatasetName())
+            .setProjectId(options.getVisionApiProjectId())
+            .build());
 
     return p.run();
   }

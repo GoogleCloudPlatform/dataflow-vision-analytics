@@ -37,7 +37,9 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("serial")
 public class ProcessImageResponseDoFn
     extends DoFn<KV<String, AnnotateImageResponse>, KV<String, TableRow>> {
-  public static final Logger LOG = LoggerFactory.getLogger(ImageRequestDoFn.class);
+
+  public static final Logger LOG = LoggerFactory.getLogger(AnnotateImagesDoFn.class);
+
   private final Counter numberOfLabelAnnotations =
       Metrics.counter(ProcessImageResponseDoFn.class, "numberOfLabelAnnotations");
   private final Counter numberOfLandmarkAnnotations =
@@ -52,11 +54,25 @@ public class ProcessImageResponseDoFn
       Metrics.counter(ProcessImageResponseDoFn.class, "numberOfImageProperties");
 
   @ProcessElement
-  public void processElement(
-      @Element KV<String, AnnotateImageResponse> element, MultiOutputReceiver out) {
-    String imageName = element.getKey();
-    AnnotateImageResponse imageResponse = element.getValue();
-    imageResponse
+  public void processElement(@Element KV<String, AnnotateImageResponse> element,
+      OutputReceiver out) {
+    String imageFileURI = element.getKey();
+    AnnotateImageResponse annotationResponse = element.getValue();
+
+    if (annotationResponse.hasError()) {
+      // TODO: add metrics
+      out.output(
+          KV.of(
+              Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
+              Util.toTableRow(
+                  Row.withSchema(Util.errorSchema)
+                      .addValues(null, Util.getTimeStamp(),
+                          annotationResponse.getError().toString(), null)
+                      .build())));
+      return;
+    }
+
+    annotationResponse
         .getAllFields()
         .entrySet()
         .forEach(
@@ -65,121 +81,117 @@ public class ProcessImageResponseDoFn
               try {
                 switch (key) {
                   case "labelAnnotations":
-                    numberOfLabelAnnotations.inc(imageResponse.getLabelAnnotationsCount());
-                    for (EntityAnnotation annotation : imageResponse.getLabelAnnotationsList()) {
-                      Row row = Util.transformLabelAnnotations(imageName, annotation);
-                      out.get(Util.apiResponseSuccessElements)
-                          .output(
-                              KV.of(
-                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION"),
-                                  Util.toTableRow(row)));
+                    numberOfLabelAnnotations.inc(annotationResponse.getLabelAnnotationsCount());
+                    for (EntityAnnotation annotation : annotationResponse
+                        .getLabelAnnotationsList()) {
+                      Row row = Util.transformLabelAnnotations(imageFileURI, annotation);
+                      out.output(
+                          KV.of(
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LABEL_ANNOTATION"),
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "landmarkAnnotations":
-                    numberOfLandmarkAnnotations.inc(imageResponse.getLandmarkAnnotationsCount());
-                    for (EntityAnnotation annotation : imageResponse.getLandmarkAnnotationsList()) {
-                      Row row = Util.transformLandmarkAnnotations(imageName, annotation);
-                      out.get(Util.apiResponseSuccessElements)
-                          .output(
-                              KV.of(
-                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LANDMARK_ANNOTATION"),
-                                  Util.toTableRow(row)));
+                    numberOfLandmarkAnnotations
+                        .inc(annotationResponse.getLandmarkAnnotationsCount());
+                    for (EntityAnnotation annotation : annotationResponse
+                        .getLandmarkAnnotationsList()) {
+                      Row row = Util.transformLandmarkAnnotations(imageFileURI, annotation);
+                      out.output(
+                          KV.of(
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LANDMARK_ANNOTATION"),
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "logoAnnotations":
-                    numberOfLogoAnnotations.inc(imageResponse.getLogoAnnotationsCount());
-                    for (EntityAnnotation annotation : imageResponse.getLogoAnnotationsList()) {
-                      Row row = Util.transformLogoAnnotations(imageName, annotation);
-                      out.get(Util.apiResponseSuccessElements)
-                          .output(
-                              KV.of(
-                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LOGO_ANNOTATION"),
-                                  Util.toTableRow(row)));
+                    numberOfLogoAnnotations.inc(annotationResponse.getLogoAnnotationsCount());
+                    for (EntityAnnotation annotation : annotationResponse
+                        .getLogoAnnotationsList()) {
+                      Row row = Util.transformLogoAnnotations(imageFileURI, annotation);
+                      out.output(
+                          KV.of(
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_LOGO_ANNOTATION"),
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "faceAnnotations":
-                    numberOfFaceAnnotations.inc(imageResponse.getFaceAnnotationsCount());
+                    numberOfFaceAnnotations.inc(annotationResponse.getFaceAnnotationsCount());
 
-                    for (FaceAnnotation annotation : imageResponse.getFaceAnnotationsList()) {
-                      Row row = Util.transformFaceAnnotations(imageName, annotation);
-                      out.get(Util.apiResponseSuccessElements)
-                          .output(
-                              KV.of(
-                                  Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_FACE_ANNOTATION"),
-                                  Util.toTableRow(row)));
+                    for (FaceAnnotation annotation : annotationResponse.getFaceAnnotationsList()) {
+                      Row row = Util.transformFaceAnnotations(imageFileURI, annotation);
+                      out.output(
+                          KV.of(
+                              Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_FACE_ANNOTATION"),
+                              Util.toTableRow(row)));
                     }
                     break;
                   case "cropHintsAnnotation":
-                    if (imageResponse.hasCropHintsAnnotation()) {
-                      CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
+                    if (annotationResponse.hasCropHintsAnnotation()) {
+                      CropHintsAnnotation annotation = annotationResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
                         numberOfCropHintsAnnotations.inc();
-                        Row row = Util.transformCropHintsAnnotations(imageName, crophint);
-                        out.get(Util.apiResponseSuccessElements)
-                            .output(
-                                KV.of(
-                                    Util.BQ_TABLE_NAME_MAP.get(
-                                        "BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
-                                    Util.toTableRow(row)));
+                        Row row = Util.transformCropHintsAnnotations(imageFileURI, crophint);
+                        out.output(
+                            KV.of(
+                                Util.BQ_TABLE_NAME_MAP.get(
+                                    "BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
+                                Util.toTableRow(row)));
                       }
                     }
                     break;
 
                   case "imagePropertiesAnnotation":
-                    if (imageResponse.hasImagePropertiesAnnotation()) {
+                    if (annotationResponse.hasImagePropertiesAnnotation()) {
                       numberOfImageProperties.inc();
                       Row row =
                           Util.transformImagePropertiesAnnotations(
-                              imageName, imageResponse.getImagePropertiesAnnotation());
-                      out.get(Util.apiResponseSuccessElements)
+                              imageFileURI, annotationResponse.getImagePropertiesAnnotation());
+                      out
                           .output(
                               KV.of(
                                   Util.BQ_TABLE_NAME_MAP.get("BQ_TABLE_NAME_IMAGE_PROP_ANNOTATION"),
                                   Util.toTableRow(row)));
                     }
-                    if (imageResponse.hasCropHintsAnnotation()) {
-                      CropHintsAnnotation annotation = imageResponse.getCropHintsAnnotation();
+                    if (annotationResponse.hasCropHintsAnnotation()) {
+                      CropHintsAnnotation annotation = annotationResponse.getCropHintsAnnotation();
                       for (CropHint crophint : annotation.getCropHintsList()) {
                         numberOfCropHintsAnnotations.inc();
 
-                        Row row = Util.transformCropHintsAnnotations(imageName, crophint);
-                        out.get(Util.apiResponseSuccessElements)
-                            .output(
-                                KV.of(
-                                    Util.BQ_TABLE_NAME_MAP.get(
-                                        "BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
-                                    Util.toTableRow(row)));
+                        Row row = Util.transformCropHintsAnnotations(imageFileURI, crophint);
+                        out.output(
+                            KV.of(
+                                Util.BQ_TABLE_NAME_MAP.get(
+                                    "BQ_TABLE_NAME_CROP_HINTS_ANNOTATION"),
+                                Util.toTableRow(row)));
                       }
                     }
                     break;
                   default:
                     String errorMessage = String.format("Feature Type %s Not Supported", key);
                     LOG.error(Util.FEATURE_TYPE_NOT_SUPPORTED, key);
-                    out.get(Util.apiResponseFailedElements)
-                        .output(
-                            KV.of(
-                                Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
-                                Util.toTableRow(
-                                    Row.withSchema(Util.errorSchema)
-                                        .addValues(
-                                            imageName, Util.getTimeStamp(), errorMessage, null)
-                                        .build())));
-                }
-              } catch (Exception e) {
-                LOG.error(
-                    "Error '{}' processing response for file '{}'", e.getMessage(), imageName);
-                out.get(Util.apiResponseFailedElements)
-                    .output(
+                    out.output(
                         KV.of(
                             Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
                             Util.toTableRow(
                                 Row.withSchema(Util.errorSchema)
                                     .addValues(
-                                        imageName,
-                                        Util.getTimeStamp(),
-                                        e.getMessage(),
-                                        ExceptionUtils.getStackTrace(e))
+                                        imageFileURI, Util.getTimeStamp(), errorMessage, null)
                                     .build())));
+                }
+              } catch (Exception e) {
+                LOG.error(
+                    "Error '{}' processing response for file '{}'", e.getMessage(), imageFileURI);
+                out.output(
+                    KV.of(
+                        Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
+                        Util.toTableRow(
+                            Row.withSchema(Util.errorSchema)
+                                .addValues(
+                                    imageFileURI,
+                                    Util.getTimeStamp(),
+                                    e.getMessage(),
+                                    ExceptionUtils.getStackTrace(e))
+                                .build())));
               }
             });
   }

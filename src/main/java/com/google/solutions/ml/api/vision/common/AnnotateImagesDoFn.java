@@ -25,7 +25,6 @@ import com.google.cloud.vision.v1.ImageSource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
@@ -34,25 +33,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * CreateImageRequest {@link ImageRequestDoFn} batch the list of images with feature type and create
+ * CreateImageRequest {@link AnnotateImagesDoFn} batch the list of images with feature type and create
  * AnnotateImage Request
  */
 @SuppressWarnings("serial")
-public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImageResponse>> {
-  public static final Logger LOG = LoggerFactory.getLogger(ImageRequestDoFn.class);
+public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, AnnotateImageResponse>> {
+
+  public static final Logger LOG = LoggerFactory.getLogger(AnnotateImagesDoFn.class);
 
   public static TupleTag<KV<String, AnnotateImageResponse>> successTag =
-      new TupleTag<KV<String, AnnotateImageResponse>>() {};
-  public static TupleTag<KV<String, TableRow>> failureTag = new TupleTag<KV<String, TableRow>>() {};
+      new TupleTag<KV<String, AnnotateImageResponse>>() {
+      };
+  public static TupleTag<KV<String, TableRow>> failureTag = new TupleTag<KV<String, TableRow>>() {
+  };
 
-  private List<Feature> featureList = new ArrayList<>();
+  private final List<Feature> featureList = new ArrayList<>();
   private ImageAnnotatorClient visionApiClient;
 
-  public ImageRequestDoFn(List<Feature.Type> featureTypes) {
+  public AnnotateImagesDoFn(List<Feature.Type> featureTypes) {
     featureTypes.forEach(
-        type -> {
-          featureList.add(Feature.newBuilder().setType(type).build());
-        });
+        type -> featureList.add(Feature.newBuilder().setType(type).build()));
   }
 
   @StartBundle
@@ -60,7 +60,7 @@ public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImag
     try {
       visionApiClient = ImageAnnotatorClient.create();
     } catch (IOException e) {
-      LOG.error("Failed to create Vision API Service Client", e.getMessage());
+      LOG.error("Failed to create Vision API Service Client: {}", e.getMessage());
       throw new RuntimeException(e);
     }
   }
@@ -73,15 +73,14 @@ public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImag
   }
 
   @ProcessElement
-  public void processElement(@Element List<String> element, MultiOutputReceiver out) {
+  public void processElement(@Element List<String> imageUris, OutputReceiver out) {
     List<AnnotateImageRequest> requests = new ArrayList<>();
 
-    AtomicInteger index = new AtomicInteger(0);
-    element.forEach(
-        img -> {
+    imageUris.forEach(
+        imageUri -> {
           Image image =
               Image.newBuilder()
-                  .setSource(ImageSource.newBuilder().setImageUri(img).build())
+                  .setSource(ImageSource.newBuilder().setImageUri(imageUri).build())
                   .build();
           AnnotateImageRequest.Builder request =
               AnnotateImageRequest.newBuilder().setImage(image).addAllFeatures(featureList);
@@ -91,21 +90,10 @@ public class ImageRequestDoFn extends DoFn<List<String>, KV<String, AnnotateImag
     List<AnnotateImageResponse> responses =
         visionApiClient.batchAnnotateImages(requests).getResponsesList();
 
-    for (AnnotateImageResponse res : responses) {
-      if (res.hasError()) {
-        out.get(failureTag)
-            .output(
-                KV.of(
-                    Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
-                    Util.toTableRow(
-                        Row.withSchema(Util.errorSchema)
-                            .addValues(null, Util.getTimeStamp(), res.getError().toString(), null)
-                            .build())));
-      } else {
-        String imageName =
-            requests.get(index.getAndIncrement()).getImage().getSource().getImageUri();
-        out.get(successTag).output(KV.of(imageName, res));
-      }
+    int index = 0;
+    for (AnnotateImageResponse response : responses) {
+        String imageUri = requests.get(index++).getImage().getSource().getImageUri();
+        out.output(KV.of(imageUri, response));
     }
   }
 }
