@@ -55,7 +55,7 @@ public class ProcessImageResponseDoFn
 
   @ProcessElement
   public void processElement(@Element KV<String, AnnotateImageResponse> element,
-      OutputReceiver out) {
+      OutputReceiver<KV<String,TableRow>> out) {
     String imageFileURI = element.getKey();
     AnnotateImageResponse annotationResponse = element.getValue();
 

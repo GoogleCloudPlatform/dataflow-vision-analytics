@@ -132,6 +132,14 @@ run {
         args project.args.split('\\s')
     }
 }
+
+task execute (type:JavaExec) {
+    main = System.getProperty("mainClass")
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.getProperties()
+    args System.getProperty("exec.args").split()
+}
+
 // Spotless configuration
 
 Boolean enableSpotlessCheck = project.hasProperty('enableSpotlessCheck') && project.enableSpotlessCheck == 'true'

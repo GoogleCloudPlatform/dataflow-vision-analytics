@@ -20,14 +20,20 @@ import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.Validation;
 
 /** Interface to store pipeline options provided by the user */
 public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions {
 
-  @Description("Subscriber Id to receive message from")
+  @Description("Pub/Sub subscription to receive messages from")
   String getSubscriberId();
 
   void setSubscriberId(String value);
+
+  @Description("Google Cloud Storage files to process")
+  String getFileList();
+
+  void setFileList(String value);
 
   @Description("Key range")
   @Default.Integer(1)
@@ -41,23 +47,26 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setBatchSize(Integer value);
 
-  @Description("Window interval in secoonds (default is 5)")
+  @Description("Window interval in seconds (default is 5)")
   @Default.Integer(5)
   Integer getWindowInterval();
 
   void setWindowInterval(Integer value);
 
   @Description("BigQuery dataset")
+  @Validation.Required
   String getDatasetName();
 
   void setDatasetName(String value);
 
   @Description("Project id to be used for Vision API requests")
+  @Validation.Required
   String getVisionApiProjectId();
 
   void setVisionApiProjectId(String value);
 
   @Description("Vision API features to use")
+  @Validation.Required
   List<Feature.Type> getFeatures();
 
   void setFeatures(List<Feature.Type> value);

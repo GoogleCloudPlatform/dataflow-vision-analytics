@@ -15,7 +15,6 @@
  */
 package com.google.solutions.ml.api.vision.common;
 
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.Feature;
@@ -27,25 +26,17 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * CreateImageRequest {@link AnnotateImagesDoFn} batch the list of images with feature type and create
- * AnnotateImage Request
+ * CreateImageRequest {@link AnnotateImagesDoFn} batch the list of images with feature type and
+ * create AnnotateImage Request
  */
 @SuppressWarnings("serial")
 public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, AnnotateImageResponse>> {
 
   public static final Logger LOG = LoggerFactory.getLogger(AnnotateImagesDoFn.class);
-
-  public static TupleTag<KV<String, AnnotateImageResponse>> successTag =
-      new TupleTag<KV<String, AnnotateImageResponse>>() {
-      };
-  public static TupleTag<KV<String, TableRow>> failureTag = new TupleTag<KV<String, TableRow>>() {
-  };
 
   private final List<Feature> featureList = new ArrayList<>();
   private ImageAnnotatorClient visionApiClient;
@@ -73,7 +64,8 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
   }
 
   @ProcessElement
-  public void processElement(@Element List<String> imageUris, OutputReceiver out) {
+  public void processElement(@Element List<String> imageUris,
+      OutputReceiver<KV<String, AnnotateImageResponse>> out) {
     List<AnnotateImageRequest> requests = new ArrayList<>();
 
     imageUris.forEach(
@@ -92,8 +84,8 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
 
     int index = 0;
     for (AnnotateImageResponse response : responses) {
-        String imageUri = requests.get(index++).getImage().getSource().getImageUri();
-        out.output(KV.of(imageUri, response));
+      String imageUri = requests.get(index++).getImage().getSource().getImageUri();
+      out.output(KV.of(imageUri, response));
     }
   }
 }

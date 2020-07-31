@@ -22,13 +22,18 @@ import com.google.solutions.ml.api.vision.common.BigQueryDynamicWriteTransform;
 import com.google.solutions.ml.api.vision.common.ProcessImageResponseDoFn;
 import com.google.solutions.ml.api.vision.common.PubSubNotificationToGCSUriDoFn;
 import com.google.solutions.ml.api.vision.common.Util;
+import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -93,22 +98,29 @@ public class VisionAnalyticsPipeline {
                   .triggering(AfterWatermark.pastEndOfWindow())
                   .discardingFiredPanes()
                   .withAllowedLateness(Duration.ZERO));
+    } else if(options.getFileList() != null) {
+      PCollection<Metadata> allFiles = p.begin()
+          .apply(Create.of(Arrays.asList(options.getFileList().split(","))))
+          .apply("List GCS Bucket(s)", FileIO.matchAll());
+      imageFileUris = allFiles.apply(ParDo.of(new DoFn<Metadata, String>() {
+        @ProcessElement
+        public void processElement(@Element Metadata metadata, OutputReceiver<String> out) {
+          out.output(metadata.resourceId().toString());
+        }
+      }));
     } else {
       throw new RuntimeException("Either subscriber id or the file list should be provided.");
     }
 
     PCollection<String> filteredImages = imageFileUris
-        .apply(Filter.by(new SerializableFunction<String, Boolean>() {
-          @Override
-          public Boolean apply(String fileName) {
-            totalFiles.inc();
-            if (fileName.matches(Util.FILE_PATTERN)) {
-              return true;
-            }
-            LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
-            rejectedFiles.inc();
-            return false;
+        .apply(Filter.by((SerializableFunction<String, Boolean>) fileName -> {
+          totalFiles.inc();
+          if (fileName.matches(Util.FILE_PATTERN)) {
+            return true;
           }
+          LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
+          rejectedFiles.inc();
+          return false;
         }));
 
     PCollection<Iterable<String>> batchedImageURIs = filteredImages
