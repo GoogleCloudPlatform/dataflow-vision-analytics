@@ -55,7 +55,6 @@ public abstract class BigQueryDynamicWriteTransform
 
   @Override
   public WriteResult expand(PCollection<KV<String, TableRow>> input) {
-
     return input.apply(
         "BQ Write",
         BigQueryIO.<KV<String, TableRow>>write()

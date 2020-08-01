@@ -64,7 +64,7 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
   }
 
   @ProcessElement
-  public void processElement(@Element List<String> imageUris,
+  public void processElement(@Element Iterable<String> imageUris,
       OutputReceiver<KV<String, AnnotateImageResponse>> out) {
     List<AnnotateImageRequest> requests = new ArrayList<>();
 
