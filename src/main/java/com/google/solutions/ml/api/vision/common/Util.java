@@ -238,7 +238,7 @@ public class Util {
                 annotation.getScore(),
                 annotation.getTopicality())
             .build();
-    LOG.info("Row {}", row.toString());
+    LOG.debug("Processing {}", row.toString());
     return row;
   }
 
