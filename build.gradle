@@ -136,12 +136,12 @@ run {
     }
 }
 
-//task execute (type:JavaExec) {
-//    main = System.getProperty("mainClass")
-//    classpath = sourceSets.main.runtimeClasspath
-//    systemProperties System.getProperties()
-//    args System.getProperty("exec.args").split()
-//}
+task execPipeline (type:JavaExec) {
+    main = System.getProperty("mainClass")
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.getProperties()
+    args System.getProperty("exec.args").split()
+}
 
 // Spotless configuration
 

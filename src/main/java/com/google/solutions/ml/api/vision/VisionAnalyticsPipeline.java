@@ -19,12 +19,12 @@ package com.google.solutions.ml.api.vision;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.solutions.ml.api.vision.common.AnnotateImagesDoFn;
+import com.google.solutions.ml.api.vision.common.BatchRequestsTransform;
 import com.google.solutions.ml.api.vision.common.BigQueryDynamicWriteTransform;
 import com.google.solutions.ml.api.vision.common.ProcessImageResponseDoFn;
 import com.google.solutions.ml.api.vision.common.PubSubNotificationToGCSUriDoFn;
 import com.google.solutions.ml.api.vision.common.Util;
 import java.util.Arrays;
-import org.apache.beam.runners.core.construction.ReshuffleTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -43,12 +43,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -134,22 +130,17 @@ public class VisionAnalyticsPipeline {
     PCollection<String> filteredImages = imageFileUris
         .apply("Filter out non-image files",
             Filter.by((SerializableFunction<String, Boolean>) fileName -> {
-          totalFiles.inc();
-          if (fileName.matches(Util.FILE_PATTERN)) {
-            return true;
-          }
-          LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
-          rejectedFiles.inc();
-          return false;
-        }));
+              totalFiles.inc();
+              if (fileName.matches(Util.FILE_PATTERN)) {
+                return true;
+              }
+              LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
+              rejectedFiles.inc();
+              return false;
+            }));
 
     PCollection<Iterable<String>> batchedImageURIs = filteredImages
-        .apply("Assign Keys", WithKeys.of("1"))
-        .apply("Group Into Batches", GroupIntoBatches.ofSize(options.getBatchSize()))
-        .apply("Convert to Batches", Values.create())
-        .apply("Reshuffle", Reshuffle.viaRandomKey());
-
-
+        .apply("Batch images", BatchRequestsTransform.create(options.getBatchSize()));
 
     PCollection<KV<String, AnnotateImageResponse>> annotatedImages =
         batchedImageURIs.apply(
@@ -170,16 +161,17 @@ public class VisionAnalyticsPipeline {
 
     batchedImageURIs.apply("Collect Batch Stats", ParDo.of(new DoFn<Iterable<String>, Boolean>() {
       private static final long serialVersionUID = 1L;
+
       @ProcessElement
       public void processElement(@Element Iterable<String> element) {
-        int[] numberOfElementsInTheBatch = new int[] {0};
+        int[] numberOfElementsInTheBatch = new int[]{0};
         element.forEach(x -> numberOfElementsInTheBatch[0]++);
         batchSizeDistribution.update(numberOfElementsInTheBatch[0]);
       }
     }));
     PipelineResult pipelineResult = p.run();
 
-    if(isBatchJob && pipelineResult.getState() == State.DONE) {
+    if (isBatchJob && pipelineResult.getState() == State.DONE) {
       printInterestingMetrics(pipelineResult);
     }
 

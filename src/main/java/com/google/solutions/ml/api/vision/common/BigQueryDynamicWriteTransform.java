@@ -32,11 +32,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoValue
-@SuppressWarnings("serial")
 public abstract class BigQueryDynamicWriteTransform
     extends PTransform<PCollection<KV<String, TableRow>>, WriteResult> {
   private static final long serialVersionUID = 1L;
-  public static final Logger LOG = LoggerFactory.getLogger(BigQueryDynamicWriteTransform.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryDynamicWriteTransform.class);
 
   public abstract String projectId();
 
@@ -71,7 +70,7 @@ public abstract class BigQueryDynamicWriteTransform
 
   public class BQDestination
       extends DynamicDestinations<KV<String, TableRow>, KV<String, TableRow>> {
-
+    private static final long serialVersionUID = 1L;
     private String datasetName;
     private String projectId;
 
@@ -120,9 +119,11 @@ public abstract class BigQueryDynamicWriteTransform
         case "IMAGE_PROPERTIES":
           schema = BigQueryUtils.toTableSchema(Util.imagePropertiesAnnotationSchema);
           break;
-        default:
-          schema = BigQueryUtils.toTableSchema(Util.labelAnnotationSchema);
+        case "ERROR_LOG":
+          schema = BigQueryUtils.toTableSchema(Util.errorSchema);
           break;
+        default:
+          throw new RuntimeException("Unprocessed table key: " + key);
       }
       LOG.debug("Schema {} ", schema.toString());
       return schema;

@@ -67,7 +67,7 @@ public class ProcessImageResponseDoFn
               Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
               Util.toTableRow(
                   Row.withSchema(Util.errorSchema)
-                      .addValues(null, Util.getTimeStamp(),
+                      .addValues(imageFileURI, Util.getTimeStamp(),
                           annotationResponse.getError().toString(), null)
                       .build())));
       VisionAnalyticsPipeline.rejectedFiles.inc();

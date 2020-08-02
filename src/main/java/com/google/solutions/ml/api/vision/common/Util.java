@@ -101,9 +101,9 @@ public class Util {
 
   public static final Schema errorSchema =
       Stream.of(
-              Schema.Field.of("file_name", FieldType.STRING).withNullable(true),
+              Schema.Field.of("gcsUri", FieldType.STRING).withNullable(true),
               Schema.Field.of("transaction_timestamp", FieldType.STRING).withNullable(true),
-              Schema.Field.of("error_messagee", FieldType.STRING).withNullable(true),
+              Schema.Field.of("error_message", FieldType.STRING).withNullable(true),
               Schema.Field.of("stack_trace", FieldType.STRING).withNullable(true))
           .collect(toSchema());
 
