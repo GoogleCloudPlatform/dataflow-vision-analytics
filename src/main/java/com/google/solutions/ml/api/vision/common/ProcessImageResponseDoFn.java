@@ -21,6 +21,7 @@ import com.google.cloud.vision.v1.CropHint;
 import com.google.cloud.vision.v1.CropHintsAnnotation;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.FaceAnnotation;
+import com.google.solutions.ml.api.vision.VisionAnalyticsPipeline;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -37,7 +38,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("serial")
 public class ProcessImageResponseDoFn
     extends DoFn<KV<String, AnnotateImageResponse>, KV<String, TableRow>> {
-
+  private static final long serialVersionUID = 1L;
   public static final Logger LOG = LoggerFactory.getLogger(AnnotateImagesDoFn.class);
 
   private final Counter numberOfLabelAnnotations =
@@ -69,8 +70,11 @@ public class ProcessImageResponseDoFn
                       .addValues(null, Util.getTimeStamp(),
                           annotationResponse.getError().toString(), null)
                       .build())));
+      VisionAnalyticsPipeline.rejectedFiles.inc();
       return;
     }
+
+    VisionAnalyticsPipeline.processedFiles.inc();
 
     annotationResponse
         .getAllFields()

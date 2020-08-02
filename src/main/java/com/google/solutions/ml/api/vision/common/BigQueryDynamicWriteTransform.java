@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("serial")
 public abstract class BigQueryDynamicWriteTransform
     extends PTransform<PCollection<KV<String, TableRow>>, WriteResult> {
+  private static final long serialVersionUID = 1L;
   public static final Logger LOG = LoggerFactory.getLogger(BigQueryDynamicWriteTransform.class);
 
   public abstract String projectId();

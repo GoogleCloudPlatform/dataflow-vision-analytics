@@ -15,6 +15,7 @@
  */
 package com.google.solutions.ml.api.vision;
 
+
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.solutions.ml.api.vision.common.AnnotateImagesDoFn;
@@ -23,20 +24,28 @@ import com.google.solutions.ml.api.vision.common.ProcessImageResponseDoFn;
 import com.google.solutions.ml.api.vision.common.PubSubNotificationToGCSUriDoFn;
 import com.google.solutions.ml.api.vision.common.Util;
 import java.util.Arrays;
+import org.apache.beam.runners.core.construction.ReshuffleTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -52,6 +61,16 @@ import org.slf4j.LoggerFactory;
 public class VisionAnalyticsPipeline {
 
   public static final Logger LOG = LoggerFactory.getLogger(VisionAnalyticsPipeline.class);
+
+  public static final Counter totalFiles = Metrics
+      .counter(VisionAnalyticsPipeline.class, "totalFiles");
+  public static final Counter rejectedFiles = Metrics
+      .counter(VisionAnalyticsPipeline.class, "rejectedFiles");
+  public static final Counter processedFiles = Metrics
+      .counter(VisionAnalyticsPipeline.class, "processedFiles");
+
+  public static final Distribution batchSizeDistribution = Metrics
+      .distribution(VisionAnalyticsPipeline.class, "batchSizeDistribution");
 
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
@@ -77,20 +96,16 @@ public class VisionAnalyticsPipeline {
    * @return result
    */
   public static PipelineResult run(VisionAnalyticsPipelineOptions options) throws Exception {
-    final Counter totalFiles = Metrics.counter(VisionAnalyticsPipeline.class, "totalFiles");
-    final Counter rejectedFiles = Metrics
-        .counter(VisionAnalyticsPipeline.class, "rejectedFiles");
-    final Counter processedFiles = Metrics
-        .counter(VisionAnalyticsPipeline.class, "rejectedFiles");
-
     Pipeline p = Pipeline.create(options);
+
+    boolean isBatchJob;
 
     PCollection<String> imageFileUris;
     if (options.getSubscriberId() != null) {
-      PCollection<PubsubMessage> pubSubNotifications = p.begin().apply("Read Pub/Sub",
+      PCollection<PubsubMessage> pubSubNotifications = p.begin().apply("Read PubSub",
           PubsubIO.readMessagesWithAttributes().fromSubscription(options.getSubscriberId()));
       imageFileUris = pubSubNotifications
-          .apply(ParDo.of(new PubSubNotificationToGCSUriDoFn()))
+          .apply("PubSub to GCS URIs", ParDo.of(new PubSubNotificationToGCSUriDoFn()))
           .apply(
               "Fixed Window",
               Window.<String>into(
@@ -98,22 +113,27 @@ public class VisionAnalyticsPipeline {
                   .triggering(AfterWatermark.pastEndOfWindow())
                   .discardingFiredPanes()
                   .withAllowedLateness(Duration.ZERO));
-    } else if(options.getFileList() != null) {
+      isBatchJob = false;
+    } else if (options.getFileList() != null) {
       PCollection<Metadata> allFiles = p.begin()
           .apply(Create.of(Arrays.asList(options.getFileList().split(","))))
           .apply("List GCS Bucket(s)", FileIO.matchAll());
       imageFileUris = allFiles.apply(ParDo.of(new DoFn<Metadata, String>() {
+        private static final long serialVersionUID = 1L;
+
         @ProcessElement
         public void processElement(@Element Metadata metadata, OutputReceiver<String> out) {
           out.output(metadata.resourceId().toString());
         }
       }));
+      isBatchJob = true;
     } else {
       throw new RuntimeException("Either subscriber id or the file list should be provided.");
     }
 
     PCollection<String> filteredImages = imageFileUris
-        .apply(Filter.by((SerializableFunction<String, Boolean>) fileName -> {
+        .apply("Filter out non-image files",
+            Filter.by((SerializableFunction<String, Boolean>) fileName -> {
           totalFiles.inc();
           if (fileName.matches(Util.FILE_PATTERN)) {
             return true;
@@ -124,9 +144,12 @@ public class VisionAnalyticsPipeline {
         }));
 
     PCollection<Iterable<String>> batchedImageURIs = filteredImages
-        .apply(WithKeys.of("1"))
-        .apply(GroupIntoBatches.ofSize(options.getBatchSize()))
-        .apply(Values.create());
+        .apply("Assign Keys", WithKeys.of("1"))
+        .apply("Group Into Batches", GroupIntoBatches.ofSize(options.getBatchSize()))
+        .apply("Convert to Batches", Values.create())
+        .apply("Reshuffle", Reshuffle.viaRandomKey());
+
+
 
     PCollection<KV<String, AnnotateImageResponse>> annotatedImages =
         batchedImageURIs.apply(
@@ -135,16 +158,38 @@ public class VisionAnalyticsPipeline {
 
     PCollection<KV<String, TableRow>> annotationOutcome =
         annotatedImages.apply(
-            "Process Response",
+            "Process Annotations",
             ParDo.of(new ProcessImageResponseDoFn()));
 
     annotationOutcome.apply(
-        "WriteToBq",
+        "Write To BigQuery",
         BigQueryDynamicWriteTransform.newBuilder()
             .setDatasetId(options.getDatasetName())
             .setProjectId(options.getVisionApiProjectId())
             .build());
 
-    return p.run();
+    batchedImageURIs.apply("Collect Batch Stats", ParDo.of(new DoFn<Iterable<String>, Boolean>() {
+      private static final long serialVersionUID = 1L;
+      @ProcessElement
+      public void processElement(@Element Iterable<String> element) {
+        int[] numberOfElementsInTheBatch = new int[] {0};
+        element.forEach(x -> numberOfElementsInTheBatch[0]++);
+        batchSizeDistribution.update(numberOfElementsInTheBatch[0]);
+      }
+    }));
+    PipelineResult pipelineResult = p.run();
+
+    if(isBatchJob && pipelineResult.getState() == State.DONE) {
+      printInterestingMetrics(pipelineResult);
+    }
+
+    return pipelineResult;
+  }
+
+  private static void printInterestingMetrics(PipelineResult pipelineResult) {
+    MetricResults metrics = pipelineResult.metrics();
+    MetricQueryResults interestingMetrics = metrics.queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(VisionAnalyticsPipeline.class)).build());
+    LOG.info("Pipeline completed. Metrics: {}", interestingMetrics.toString());
   }
 }

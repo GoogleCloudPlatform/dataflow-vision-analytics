@@ -7,7 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage, String> {
+  private static final long serialVersionUID = 1L;
   private static final Logger LOG = LoggerFactory.getLogger(PubSubNotificationToGCSUriDoFn.class);
+
   @ProcessElement
   public void processElement(ProcessContext c) {
     String eventType = c.element().getAttribute("eventType");
