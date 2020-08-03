@@ -70,4 +70,10 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
   List<Feature.Type> getFeatures();
 
   void setFeatures(List<Feature.Type> value);
+
+  @Description("Simulate annotations")
+  @Default.Boolean(false)
+  boolean isSimulate();
+
+  void setSimulate(boolean value);
 }

@@ -24,6 +24,7 @@ import com.google.cloud.vision.v1.ImageSource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
@@ -46,8 +47,8 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
         type -> featureList.add(Feature.newBuilder().setType(type).build()));
   }
 
-  @StartBundle
-  public void startBundle() {
+  @Setup
+  public void setupAPIClient() {
     try {
       visionApiClient = ImageAnnotatorClient.create();
     } catch (IOException e) {
@@ -56,9 +57,20 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
     }
   }
 
-  @FinishBundle
-  public void finishBundle() {
+  @Teardown
+  public void tearDownAPIClient() {
     if (visionApiClient != null) {
+      visionApiClient.shutdownNow();
+      try {
+        int waitTime = 10;
+        if (!visionApiClient.awaitTermination(waitTime, TimeUnit.SECONDS)) {
+          LOG.warn(
+              "Failed to shutdown the annotation client after {} seconds. Closing client anyway.",
+              waitTime);
+        }
+      } catch (InterruptedException e) {
+        // Do nothing
+      }
       visionApiClient.close();
     }
   }

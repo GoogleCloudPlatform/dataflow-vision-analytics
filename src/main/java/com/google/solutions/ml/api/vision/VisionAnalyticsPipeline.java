@@ -19,6 +19,7 @@ package com.google.solutions.ml.api.vision;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.solutions.ml.api.vision.common.AnnotateImagesDoFn;
+import com.google.solutions.ml.api.vision.common.AnnotateImagesSimulatorDoFn;
 import com.google.solutions.ml.api.vision.common.BatchRequestsTransform;
 import com.google.solutions.ml.api.vision.common.BigQueryDynamicWriteTransform;
 import com.google.solutions.ml.api.vision.common.ProcessImageResponseDoFn;
@@ -76,7 +77,7 @@ public class VisionAnalyticsPipeline {
    *
    * @param args The command-line arguments to the pipeline.
    */
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
 
     VisionAnalyticsPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args)
@@ -91,7 +92,7 @@ public class VisionAnalyticsPipeline {
    *
    * @return result
    */
-  public static PipelineResult run(VisionAnalyticsPipelineOptions options) throws Exception {
+  public static PipelineResult run(VisionAnalyticsPipelineOptions options) {
     Pipeline p = Pipeline.create(options);
 
     boolean isBatchJob;
@@ -140,12 +141,16 @@ public class VisionAnalyticsPipeline {
             }));
 
     PCollection<Iterable<String>> batchedImageURIs = filteredImages
-        .apply("Batch images", BatchRequestsTransform.create(options.getBatchSize()));
+        .apply("Batch images",
+            BatchRequestsTransform.create(options.getBatchSize(), options.getKeyRange()));
 
     PCollection<KV<String, AnnotateImageResponse>> annotatedImages =
-        batchedImageURIs.apply(
-            "Annotate Images",
-            ParDo.of(new AnnotateImagesDoFn(options.getFeatures())));
+        options.isSimulate() ?
+            batchedImageURIs.apply("Simulate Annotation",
+                ParDo.of(new AnnotateImagesSimulatorDoFn(options.getFeatures()))) :
+            batchedImageURIs.apply(
+                "Annotate Images",
+                ParDo.of(new AnnotateImagesDoFn(options.getFeatures())));
 
     PCollection<KV<String, TableRow>> annotationOutcome =
         annotatedImages.apply(

@@ -16,7 +16,7 @@
  */
 buildscript {
     ext {
-        dataflowBeamVersion = '2.22.0'
+        dataflowBeamVersion = '2.23.0'
         visionApiVersion= '1.99.3'
     }
 repositories {
@@ -137,10 +137,13 @@ run {
 }
 
 task execPipeline (type:JavaExec) {
-    main = System.getProperty("mainClass")
-    classpath = sourceSets.main.runtimeClasspath
-    systemProperties System.getProperties()
-    args System.getProperty("exec.args").split()
+    dependsOn(assemble)
+    doLast {
+        main = System.getProperty("mainClass")
+        classpath = sourceSets.main.runtimeClasspath
+        systemProperties System.getProperties()
+        args System.getProperty("exec.args").split()
+    }
 }
 
 // Spotless configuration
