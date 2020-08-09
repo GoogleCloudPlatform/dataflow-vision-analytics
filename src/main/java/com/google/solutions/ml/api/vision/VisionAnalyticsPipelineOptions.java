@@ -59,7 +59,7 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setDatasetName(String value);
 
-  @Description("Project id to be used for Vision API requests")
+  @Description("Project id to be used for Vision API requests and BigQuery dataset")
   @Validation.Required
   String getVisionApiProjectId();
 
@@ -76,4 +76,34 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
   boolean isSimulate();
 
   void setSimulate(boolean value);
+
+  @Description("Table name for label annotations")
+  @Default.String("label_annotation")
+  String getLabelAnnotationTable();
+
+  void setLabelAnnotationTable(String value);
+
+  @Description("Table name for landmark annotations")
+  @Default.String("landmark_annotation")
+  String getLandmarkAnnotationTable();
+
+  void setLandmarkAnnotationTable(String value);
+
+  @Description("Table name for logo annotations")
+  @Default.String("logo_annotation")
+  String getLogoAnnotationTable();
+
+  void setLogoAnnotationTable(String value);
+
+  @Description("Table name for face annotations")
+  @Default.String("face_annotation")
+  String getFaceAnnotationTable();
+
+  void setFaceAnnotationTable(String value);
+
+  @Description("Table name for error logs")
+  @Default.String("error_log")
+  String getErrorLogTable();
+
+  void setErrorLogTable(String value);
 }

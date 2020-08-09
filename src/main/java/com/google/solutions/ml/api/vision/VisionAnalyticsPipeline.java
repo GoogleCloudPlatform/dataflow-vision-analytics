@@ -18,6 +18,8 @@ package com.google.solutions.ml.api.vision;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
+import com.google.cloud.vision.v1.Feature;
+import com.google.cloud.vision.v1.Feature.Type;
 import com.google.solutions.ml.api.vision.common.AnnotateImagesDoFn;
 import com.google.solutions.ml.api.vision.common.AnnotateImagesSimulatorDoFn;
 import com.google.solutions.ml.api.vision.common.BatchRequestsTransform;
@@ -25,7 +27,18 @@ import com.google.solutions.ml.api.vision.common.BigQueryDynamicWriteTransform;
 import com.google.solutions.ml.api.vision.common.ProcessImageResponseDoFn;
 import com.google.solutions.ml.api.vision.common.PubSubNotificationToGCSUriDoFn;
 import com.google.solutions.ml.api.vision.common.Util;
+import com.google.solutions.ml.api.vision.processor.AnnotationProcessor;
+import com.google.solutions.ml.api.vision.processor.ErrorProcessor;
+import com.google.solutions.ml.api.vision.processor.FaceAnnotationProcessor;
+import com.google.solutions.ml.api.vision.processor.LabelProcessor;
+import com.google.solutions.ml.api.vision.processor.LandmarkProcessor;
+import com.google.solutions.ml.api.vision.processor.LogoProcessor;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -128,6 +141,7 @@ public class VisionAnalyticsPipeline {
       throw new RuntimeException("Either subscriber id or the file list should be provided.");
     }
 
+    // TODO: filtering of pubsub messages ideally should be done by mime type.
     PCollection<String> filteredImages = imageFileUris
         .apply("Filter out non-image files",
             Filter.by((SerializableFunction<String, Boolean>) fileName -> {
@@ -139,6 +153,28 @@ public class VisionAnalyticsPipeline {
               rejectedFiles.inc();
               return false;
             }));
+
+//    PCollectionView<Map<String, ImageContext>> imageContext = null;
+//    PCollection<List<AnnotateImageResponse>> annotationResponses = filteredImages
+//        .apply("Annotate images", CloudVision.annotateImagesFromGcsUri(imageContext,
+//            converFeatureTypesToFeatures(options
+//                .getFeatures()), options.getBatchSize(), 1));
+//
+//    annotationResponses
+//        .apply("Standard processing", ParDo.of(new DoFn<List<AnnotateImageResponse>, String>() {
+//          @ProcessElement
+//          public void process(@Element List<AnnotateImageResponse> element,
+//              OutputReceiver<String> outputReceiver) {
+//            element.forEach(e -> {
+//              ImageAnnotationContext context = e.getContext();
+//              if (context == null) {
+//                LOG.info("Empty context");
+//                return;
+//              }
+//              LOG.info("Context.imageURI: {}", context.getUri());
+//            });
+//          }
+//        }));
 
     PCollection<Iterable<String>> batchedImageURIs = filteredImages
         .apply("Batch images",
@@ -152,17 +188,20 @@ public class VisionAnalyticsPipeline {
                 "Annotate Images",
                 ParDo.of(new AnnotateImagesDoFn(options.getFeatures())));
 
-    PCollection<KV<String, TableRow>> annotationOutcome =
+    Map<String, AnnotationProcessor> processors = configureProcessors(options);
+
+    PCollection<KV<BQDestination, TableRow>> annotationOutcome =
         annotatedImages.apply(
             "Process Annotations",
-            ParDo.of(new ProcessImageResponseDoFn()));
+            ParDo.of(new ProcessImageResponseDoFn(new ArrayList<>(processors.values()))));
 
-    annotationOutcome.apply(
-        "Write To BigQuery",
-        BigQueryDynamicWriteTransform.newBuilder()
-            .setDatasetId(options.getDatasetName())
-            .setProjectId(options.getVisionApiProjectId())
-            .build());
+    Map<String, TableDetails> tableNameToTableDetailsMap = new HashMap<>();
+    processors.forEach(
+        (tableName, processor) -> tableNameToTableDetailsMap
+        .put(tableName, processor.destinationTableDetails()));
+
+    annotationOutcome.apply("Write To BigQuery", new BigQueryDynamicWriteTransform(
+        options.getVisionApiProjectId(), options.getDatasetName(), tableNameToTableDetailsMap));
 
     batchedImageURIs.apply("Collect Batch Stats", ParDo.of(new DoFn<Iterable<String>, Boolean>() {
       private static final long serialVersionUID = 1L;
@@ -181,6 +220,35 @@ public class VisionAnalyticsPipeline {
     }
 
     return pipelineResult;
+  }
+
+  private static Map<String, AnnotationProcessor> configureProcessors(
+      VisionAnalyticsPipelineOptions options) {
+    Map<String, AnnotationProcessor> result = new HashMap<>();
+
+    String tableName = options.getLabelAnnotationTable();
+    result.put(tableName, new LabelProcessor(tableName));
+
+    tableName = options.getLandmarkAnnotationTable();
+    result.put(tableName, new LandmarkProcessor(tableName));
+
+    tableName = options.getLogoAnnotationTable();
+    result.put(tableName, new LogoProcessor(tableName));
+
+    tableName = options.getFaceAnnotationTable();
+    result.put(tableName, new FaceAnnotationProcessor(tableName));
+
+    tableName = options.getErrorLogTable();
+    result.put(tableName, new ErrorProcessor(tableName));
+
+    return result;
+  }
+
+  private static List<Feature> convertFeatureTypesToFeatures(List<Type> features) {
+    List<Feature> result = new ArrayList<>();
+    features.forEach(
+        type -> result.add(Feature.newBuilder().setType(type).build()));
+    return result;
   }
 
   private static void printInterestingMetrics(PipelineResult pipelineResult) {

@@ -15,118 +15,94 @@
  */
 package com.google.solutions.ml.api.vision.common;
 
+import com.google.api.client.json.Json;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.auto.value.AutoValue;
+import com.google.solutions.ml.api.vision.BQDestination;
+import com.google.solutions.ml.api.vision.TableDetails;
+import java.util.Map;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV3;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-@AutoValue
-public abstract class BigQueryDynamicWriteTransform
-    extends PTransform<PCollection<KV<String, TableRow>>, WriteResult> {
+public class BigQueryDynamicWriteTransform
+    extends PTransform<PCollection<KV<BQDestination, TableRow>>, WriteResult> {
+
   private static final long serialVersionUID = 1L;
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryDynamicWriteTransform.class);
+  private final String projectId;
+  private final String datasetId;
+  private final Map<String, TableDetails> tableNameToTableDetailsMap;
 
-  public abstract String projectId();
-
-  public abstract String datasetId();
-
-  public static Builder newBuilder() {
-    return new AutoValue_BigQueryDynamicWriteTransform.Builder();
-  }
-
-  @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder setDatasetId(String projectId);
-
-    public abstract Builder setProjectId(String datasetId);
-
-    public abstract BigQueryDynamicWriteTransform build();
+  public BigQueryDynamicWriteTransform(String projectId, String datasetId,
+      Map<String, TableDetails> tableNameToTableDetailsMap) {
+    this.projectId = projectId;
+    this.datasetId = datasetId;
+    this.tableNameToTableDetailsMap = tableNameToTableDetailsMap;
   }
 
   @Override
-  public WriteResult expand(PCollection<KV<String, TableRow>> input) {
+  public WriteResult expand(PCollection<KV<BQDestination, TableRow>> input) {
     return input.apply(
         "BQ Write",
-        BigQueryIO.<KV<String, TableRow>>write()
-            .to(new BQDestination(datasetId(), projectId()))
-            .withFormatFunction(element -> element.getValue())
-            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+        BigQueryIO.<KV<BQDestination, TableRow>>write()
+            .to(new AnnotationDestination())
+            .withFormatFunction(KV::getValue)
+            .withWriteDisposition(WriteDisposition.WRITE_APPEND)
             .withoutValidation()
-            .withMethod(Method.STREAMING_INSERTS)
+//            .withMethod(Method.STREAMING_INSERTS)
+            .withClustering()
             .ignoreInsertIds()
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
   }
 
-  public class BQDestination
-      extends DynamicDestinations<KV<String, TableRow>, KV<String, TableRow>> {
-    private static final long serialVersionUID = 1L;
-    private String datasetName;
-    private String projectId;
+  public class AnnotationDestination extends
+      DynamicDestinations<KV<BQDestination, TableRow>, BQDestination> {
 
-    public BQDestination(String datasetName, String projectId) {
-      this.datasetName = datasetName;
-      this.projectId = projectId;
+    private final static long serialVersionUID = 1l;
+
+    @Override
+    public BQDestination getDestination(
+        ValueInSingleWindow<KV<BQDestination, TableRow>> element) {
+      return element.getValue().getKey();
     }
 
     @Override
-    public KV<String, TableRow> getDestination(ValueInSingleWindow<KV<String, TableRow>> element) {
-      String key = element.getValue().getKey();
-      String tableName = String.format("%s:%s.%s", projectId, datasetName, key);
-      LOG.debug("Table Name {}", tableName);
-      return KV.of(tableName, element.getValue().getValue());
+    public TableDestination getTable(BQDestination destination) {
+      TableDetails tableDetails = tableDetails(destination);
+      return new TableDestination(
+          new TableReference()
+              .setProjectId(projectId)
+              .setDatasetId(datasetId)
+              .setTableId(destination.getTableName()),
+          tableDetails.getDescription(),
+          tableDetails.getTimePartitioningJson(),
+          tableDetails.getClusteringJson());
     }
 
     @Override
-    public TableDestination getTable(KV<String, TableRow> destination) {
-      TableDestination dest =
-          new TableDestination(destination.getKey(), "vision api data from dataflow");
-      LOG.debug("Table Destination {}", dest.getTableSpec());
-      return dest;
+    public TableSchema getSchema(BQDestination destination) {
+      return tableDetails(destination).getSchemaProducer().getTableSchema();
     }
 
-    @Override
-    public TableSchema getSchema(KV<String, TableRow> destination) {
-      TableSchema schema;
-      String key = destination.getKey().split("\\.")[1];
-      LOG.debug("Table Key {}", key);
-      switch (key) {
-        case "LABEL_ANNOTATION":
-          schema = BigQueryUtils.toTableSchema(Util.labelAnnotationSchema);
-          break;
-        case "LANDMARK_ANNOTATION":
-          schema = BigQueryUtils.toTableSchema(Util.landmarkAnnotationSchema);
-          break;
-        case "LOGO_ANNOTATION":
-          schema = BigQueryUtils.toTableSchema(Util.logoAnnotationSchema);
-          break;
-        case "FACE_ANNOTATION":
-          schema = BigQueryUtils.toTableSchema(Util.faceDetectionAnnotationSchema);
-          break;
-        case "CROP_HINTS_ANNOTATION":
-          schema = BigQueryUtils.toTableSchema(Util.cropHintsAnnotationSchema);
-          break;
-        case "IMAGE_PROPERTIES":
-          schema = BigQueryUtils.toTableSchema(Util.imagePropertiesAnnotationSchema);
-          break;
-        case "ERROR_LOG":
-          schema = BigQueryUtils.toTableSchema(Util.errorSchema);
-          break;
-        default:
-          throw new RuntimeException("Unprocessed table key: " + key);
+    private TableDetails tableDetails(BQDestination destination) {
+      TableDetails result = tableNameToTableDetailsMap.get(destination.getTableName());
+      if (result == null) {
+        throw new RuntimeException("Unable to find schema for table " + destination.getTableName());
       }
-      LOG.debug("Schema {} ", schema.toString());
-      return schema;
+      return result;
     }
   }
 }

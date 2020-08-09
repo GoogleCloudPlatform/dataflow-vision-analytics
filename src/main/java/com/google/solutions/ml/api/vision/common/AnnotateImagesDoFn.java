@@ -34,8 +34,8 @@ import org.slf4j.LoggerFactory;
  * CreateImageRequest {@link AnnotateImagesDoFn} batch the list of images with feature type and
  * create AnnotateImage Request
  */
-@SuppressWarnings("serial")
 public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, AnnotateImageResponse>> {
+  private static final long serialVersionUID = 1l;
 
   public static final Logger LOG = LoggerFactory.getLogger(AnnotateImagesDoFn.class);
 
