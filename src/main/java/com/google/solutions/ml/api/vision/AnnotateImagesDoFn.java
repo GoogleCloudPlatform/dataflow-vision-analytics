@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.solutions.ml.api.vision.common;
+package com.google.solutions.ml.api.vision;
 
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
@@ -31,11 +31,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * CreateImageRequest {@link AnnotateImagesDoFn} batch the list of images with feature type and
- * create AnnotateImage Request
+ * Calls Google Cloud Vision API to annotate a batch of GCS files.
+ *
+ * The GCS file URIs are provided in the incoming PCollection and should not exceed the limit
+ * imposed by the API (maximum of 16 images per request).
+ *
+ * The resulting PCollection contains key/value pair with the GCS file URI as the key and the API
+ * response as the value.
  */
 public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, AnnotateImageResponse>> {
-  private static final long serialVersionUID = 1l;
+
+  private static final long serialVersionUID = 1L;
 
   public static final Logger LOG = LoggerFactory.getLogger(AnnotateImagesDoFn.class);
 
@@ -76,11 +82,11 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
   }
 
   @ProcessElement
-  public void processElement(@Element Iterable<String> imageUris,
+  public void processElement(@Element Iterable<String> imageFileURIs,
       OutputReceiver<KV<String, AnnotateImageResponse>> out) {
     List<AnnotateImageRequest> requests = new ArrayList<>();
 
-    imageUris.forEach(
+    imageFileURIs.forEach(
         imageUri -> {
           Image image =
               Image.newBuilder()

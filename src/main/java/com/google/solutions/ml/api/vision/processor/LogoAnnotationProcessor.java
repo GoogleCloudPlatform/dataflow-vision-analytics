@@ -1,3 +1,19 @@
+/*
+ * Copyright 2020 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.google.solutions.ml.api.vision.processor;
 
 import com.google.api.services.bigquery.model.Clustering;
@@ -21,13 +37,16 @@ import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LogoProcessor implements AnnotationProcessor {
+/**
+ * Extracts logo annotations (https://cloud.google.com/vision/docs/detecting-logos)
+ */
+public class LogoAnnotationProcessor implements AnnotateImageResponseProcessor {
 
   private static final long serialVersionUID = 1L;
 
   public final static Counter counter =
-      Metrics.counter(AnnotationProcessor.class, "numberOfLogoAnnotations");
-  public static final Logger LOG = LoggerFactory.getLogger(LogoProcessor.class);
+      Metrics.counter(AnnotateImageResponseProcessor.class, "numberOfLogoAnnotations");
+  public static final Logger LOG = LoggerFactory.getLogger(LogoAnnotationProcessor.class);
 
   private static class SchemaProducer implements TableSchemaProducer {
 
@@ -62,19 +81,22 @@ public class LogoProcessor implements AnnotationProcessor {
 
   @Override
   public TableDetails destinationTableDetails() {
-    return new TableDetails("Google Vision API Logo Annotations",
+    return TableDetails.create("Google Vision API Logo Annotations",
         new Clustering().setFields(Collections.singletonList(Field.GCS_URI_FIELD)),
         new TimePartitioning().setField(Field.TIMESTAMP_FIELD), new SchemaProducer());
   }
 
   private final BQDestination destination;
 
-  public LogoProcessor(String tableId) {
+  /**
+   * Creates a processor and specifies the table id to persist to.
+   */
+  public LogoAnnotationProcessor(String tableId) {
     destination = new BQDestination(tableId);
   }
 
   @Override
-  public Iterable<KV<BQDestination, TableRow>> extractAnnotations(
+  public Iterable<KV<BQDestination, TableRow>> process(
       String gcsURI, AnnotateImageResponse response) {
     int numberOfAnnotations = response.getLogoAnnotationsCount();
     if (numberOfAnnotations == 0) {

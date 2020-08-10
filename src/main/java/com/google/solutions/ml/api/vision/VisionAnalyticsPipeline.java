@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,20 +19,12 @@ package com.google.solutions.ml.api.vision;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.common.collect.ImmutableSet;
-import com.google.solutions.ml.api.vision.common.AnnotateImagesDoFn;
-import com.google.solutions.ml.api.vision.common.AnnotateImagesSimulatorDoFn;
-import com.google.solutions.ml.api.vision.common.BatchRequestsTransform;
-import com.google.solutions.ml.api.vision.common.BigQueryDynamicWriteTransform;
-import com.google.solutions.ml.api.vision.common.ProcessImageResponseDoFn;
-import com.google.solutions.ml.api.vision.common.PubSubNotificationToGCSUriDoFn;
-import com.google.solutions.ml.api.vision.common.Util;
-import com.google.solutions.ml.api.vision.processor.AnnotationProcessor;
+import com.google.solutions.ml.api.vision.processor.AnnotateImageResponseProcessor;
 import com.google.solutions.ml.api.vision.processor.ErrorProcessor;
 import com.google.solutions.ml.api.vision.processor.FaceAnnotationProcessor;
-import com.google.solutions.ml.api.vision.processor.LabelProcessor;
-import com.google.solutions.ml.api.vision.processor.LandmarkProcessor;
-import com.google.solutions.ml.api.vision.processor.LogoProcessor;
-import java.util.ArrayList;
+import com.google.solutions.ml.api.vision.processor.LabelAnnotationProcessor;
+import com.google.solutions.ml.api.vision.processor.LandmarkAnnotationProcessor;
+import com.google.solutions.ml.api.vision.processor.LogoAnnotationProcessor;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -66,6 +58,9 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Main class for the vision analytics processing.
+ */
 public class VisionAnalyticsPipeline {
 
   public static final Logger LOG = LoggerFactory.getLogger(VisionAnalyticsPipeline.class);
@@ -85,7 +80,7 @@ public class VisionAnalyticsPipeline {
       "image/jpeg", "image/png", "image/tiff", "image/tif", "image/gif"
   );
 
-  public static final String ACCEPTED_FILE_PATTERN = "(^.*\\.(JPEG|jpeg|JPG|jpg|PNG|png|GIF|gif|TIFF|tiff|TIF|tif)$)";
+  private static final String ACCEPTED_FILE_PATTERN = "(^.*\\.(JPEG|jpeg|JPG|jpg|PNG|png|GIF|gif|TIFF|tiff|TIF|tif)$)";
 
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
@@ -160,17 +155,36 @@ public class VisionAnalyticsPipeline {
                 "Annotate Images",
                 ParDo.of(new AnnotateImagesDoFn(options.getFeatures())));
 
-    Map<String, AnnotationProcessor> processors = configureProcessors(options);
+    Map<String, AnnotateImageResponseProcessor> processors = configureProcessors(options);
 
     PCollection<KV<BQDestination, TableRow>> annotationOutcome =
         annotatedImages.apply(
             "Process Annotations",
-            ParDo.of(new ProcessImageResponseDoFn(new ArrayList<>(processors.values()))));
+            ParDo.of(ProcessImageResponseDoFn.create(ImmutableSet.copyOf(processors.values()))));
 
     annotationOutcome.apply("Write To BigQuery", new BigQueryDynamicWriteTransform(
-        options.getVisionApiProjectId(), options.getDatasetName(),
-        tableNameToTableDetailsMap(processors)));
+        BQDynamicDestinations.builder()
+            .projectId(options.getVisionApiProjectId())
+            .datasetId(options.getDatasetName())
+            .tableNameToTableDetailsMap(
+                tableNameToTableDetailsMap(processors)).build())
+    );
 
+    collectBatchStatistics(batchedImageURIs);
+
+    PipelineResult pipelineResult = p.run();
+
+    if (isBatchJob && pipelineResult.getState() == State.DONE) {
+      printInterestingMetrics(pipelineResult);
+    }
+
+    return pipelineResult;
+  }
+
+  /**
+   * Collect the statistics on batching the requests. The results are published to a metric.
+   */
+  static void collectBatchStatistics(PCollection<Iterable<String>> batchedImageURIs) {
     batchedImageURIs.apply("Collect Batch Stats", ParDo.of(new DoFn<Iterable<String>, Boolean>() {
       private static final long serialVersionUID = 1L;
 
@@ -181,17 +195,16 @@ public class VisionAnalyticsPipeline {
         batchSizeDistribution.update(numberOfElementsInTheBatch[0]);
       }
     }));
-    PipelineResult pipelineResult = p.run();
-
-    if (isBatchJob && pipelineResult.getState() == State.DONE) {
-      printInterestingMetrics(pipelineResult);
-    }
-
-    return pipelineResult;
   }
 
+  /**
+   * Create a map of the table details. Each processor will produce <code>TableRow</code>s destined
+   * to a different table. Each processor will provide the details about that table.
+   *
+   * @return map of table details keyed by table name
+   */
   static Map<String, TableDetails> tableNameToTableDetailsMap(
-      Map<String, AnnotationProcessor> processors) {
+      Map<String, AnnotateImageResponseProcessor> processors) {
     Map<String, TableDetails> tableNameToTableDetailsMap = new HashMap<>();
     processors.forEach(
         (tableName, processor) -> tableNameToTableDetailsMap
@@ -199,6 +212,17 @@ public class VisionAnalyticsPipeline {
     return tableNameToTableDetailsMap;
   }
 
+  /**
+   * Reads PubSub messages from the subscription provided by {@link VisionAnalyticsPipelineOptions#getSubscriberId()}.
+   *
+   * The messages are expected to confirm to the GCS notification message format defined in
+   * https://cloud.google.com/storage/docs/pubsub-notifications
+   *
+   * Notifications are filtered to have one of the supported content types: {@link
+   * VisionAnalyticsPipeline#SUPPORTED_CONTENT_TYPES}.
+   *
+   * @return PCollection of GCS URIs
+   */
   static PCollection<String> convertPubSubNotificationsToGCSURIs(
       Pipeline p, VisionAnalyticsPipelineOptions options) {
     PCollection<String> imageFileUris;
@@ -217,6 +241,16 @@ public class VisionAnalyticsPipeline {
     return imageFileUris;
   }
 
+  /**
+   * Reads the GCS buckets provided by {@link VisionAnalyticsPipelineOptions#getFileList()}.
+   *
+   * The file list can contain multiple entries separated by the comma and can contain wildcards
+   * supported by {@link FileIO#matchAll()}.
+   *
+   * Files are filtered based on their suffixes as defined in {@link VisionAnalyticsPipeline#ACCEPTED_FILE_PATTERN}.
+   *
+   * @return PCollection of GCS URIs
+   */
   static PCollection<String> listGCSFiles(Pipeline p, VisionAnalyticsPipelineOptions options) {
     PCollection<String> imageFileUris;
     PCollection<Metadata> allFiles = p.begin()
@@ -236,25 +270,30 @@ public class VisionAnalyticsPipeline {
               if (fileName.matches(ACCEPTED_FILE_PATTERN)) {
                 return true;
               }
-              LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
+              LOG.warn("File {} does not contain a valid extension", fileName);
               rejectedFiles.inc();
               return false;
             }));
     return imageFileUris;
   }
 
-  private static Map<String, AnnotationProcessor> configureProcessors(
+  /**
+   * Creates a map of well-known {@link AnnotateImageResponseProcessor}s.
+   *
+   * If additional processors are needed they should be configured in this method.
+   */
+  private static Map<String, AnnotateImageResponseProcessor> configureProcessors(
       VisionAnalyticsPipelineOptions options) {
-    Map<String, AnnotationProcessor> result = new HashMap<>();
+    Map<String, AnnotateImageResponseProcessor> result = new HashMap<>();
 
     String tableName = options.getLabelAnnotationTable();
-    result.put(tableName, new LabelProcessor(tableName));
+    result.put(tableName, new LabelAnnotationProcessor(tableName));
 
     tableName = options.getLandmarkAnnotationTable();
-    result.put(tableName, new LandmarkProcessor(tableName));
+    result.put(tableName, new LandmarkAnnotationProcessor(tableName));
 
     tableName = options.getLogoAnnotationTable();
-    result.put(tableName, new LogoProcessor(tableName));
+    result.put(tableName, new LogoAnnotationProcessor(tableName));
 
     tableName = options.getFaceAnnotationTable();
     result.put(tableName, new FaceAnnotationProcessor(tableName));
@@ -265,10 +304,16 @@ public class VisionAnalyticsPipeline {
     return result;
   }
 
+  /**
+   * Helper method to print several metrics related to the pipeline processing. Notice that only
+   * batch pipelines can print final metrics.
+   */
   private static void printInterestingMetrics(PipelineResult pipelineResult) {
     MetricResults metrics = pipelineResult.metrics();
     MetricQueryResults interestingMetrics = metrics.queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(VisionAnalyticsPipeline.class)).build());
+        .addNameFilter(MetricNameFilter.inNamespace(VisionAnalyticsPipeline.class))
+        .addNameFilter(MetricNameFilter.inNamespace(AnnotateImageResponseProcessor.class))
+        .build());
     LOG.info("Pipeline completed. Metrics: {}", interestingMetrics.toString());
   }
 }

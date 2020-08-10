@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,9 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
-/** Interface to store pipeline options provided by the user */
+/**
+ * Interface to store pipeline options provided by the user
+ */
 public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions {
 
   @Description("Pub/Sub subscription to receive messages from")
@@ -41,7 +43,7 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setKeyRange(Integer value);
 
-  @Description("Image batch size")
+  @Description("Image annotation request batch size")
   @Default.Integer(1)
   Integer getBatchSize();
 

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,26 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.solutions.ml.api.vision.common;
+package com.google.solutions.ml.api.vision;
 
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.AnnotateImageResponse.Builder;
 import com.google.cloud.vision.v1.Feature;
-import com.google.cloud.vision.v1.Image;
-import com.google.cloud.vision.v1.ImageSource;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * CreateImageRequest {@link AnnotateImagesSimulatorDoFn} batch the list of images with feature type
- * and create AnnotateImage Request
+ * Image annotation simulation class to test batching logic without incurring Vision API costs.
+ *
+ * It simulates the delay of calling the API and produces a single annotation.
  */
-@SuppressWarnings("serial")
 public class AnnotateImagesSimulatorDoFn extends
     DoFn<Iterable<String>, KV<String, AnnotateImageResponse>> {
+  private static final long serialVersionUID = 1L;
 
+  /**
+   * Not used. But the simulation logic can be enhanced if needed to produce annotations
+   * based on the requested features.
+   */
   private final List<Feature> featureList = new ArrayList<>();
 
   public AnnotateImagesSimulatorDoFn(List<Feature.Type> featureTypes) {
@@ -52,10 +55,6 @@ public class AnnotateImagesSimulatorDoFn extends
 
     imageUris.forEach(
         imageUri -> {
-          Image image =
-              Image.newBuilder()
-                  .setSource(ImageSource.newBuilder().setImageUri(imageUri).build())
-                  .build();
           Builder responseBuilder = AnnotateImageResponse.newBuilder();
           responseBuilder.addLabelAnnotationsBuilder(0).setDescription("Test").setScore(.5F)
               .setTopicality(.6F).setMid("/m/test");

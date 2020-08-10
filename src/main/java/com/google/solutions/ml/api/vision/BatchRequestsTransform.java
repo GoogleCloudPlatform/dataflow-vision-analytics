@@ -1,4 +1,20 @@
-package com.google.solutions.ml.api.vision.common;
+/*
+ * Copyright 2020 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.solutions.ml.api.vision;
 
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
@@ -12,6 +28,10 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 
+/**
+ * Groups the requests into certain size batches. See {@link GroupIntoBatches} for effects
+ * of windowing on the output of this transform.
+ */
 @AutoValue
 public abstract class BatchRequestsTransform extends
     PTransform<PCollection<String>, PCollection<Iterable<String>>> {
@@ -19,12 +39,19 @@ public abstract class BatchRequestsTransform extends
   private static final long serialVersionUID = 1L;
 
   public abstract long getBatchSize();
+
   public abstract int getKeyRange();
 
-  public static BatchRequestsTransform create(long newBatchSize, int newKeyRange) {
+
+  /**
+   * @param batchSize should be between 1 and 16
+   * @param keyRange determines the level of parallelism. Should be a positive non-zero integer.
+   * @return a new transform
+   */
+  public static BatchRequestsTransform create(long batchSize, int keyRange) {
     return builder()
-        .setBatchSize(newBatchSize)
-        .setKeyRange(newKeyRange)
+        .setBatchSize(batchSize)
+        .setKeyRange(keyRange)
         .build();
   }
 
@@ -35,6 +62,7 @@ public abstract class BatchRequestsTransform extends
           .apply("Assign Keys", WithKeys.of(new SerializableFunction<String, Integer>() {
             private static final long serialVersionUID = 1L;
             private Random random = new Random();
+
             @Override
             public Integer apply(String input) {
               return random.nextInt(getKeyRange());
