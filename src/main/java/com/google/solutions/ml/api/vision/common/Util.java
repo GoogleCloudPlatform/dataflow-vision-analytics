@@ -36,11 +36,6 @@ public class Util {
 
   public static final Logger LOG = LoggerFactory.getLogger(Util.class);
   /**
-   * Allowed image extension supported by Vision API
-   */
-  // TODO: check for MIME type rather than file extensions.
-  public static final String FILE_PATTERN = "(^.*\\.(JPEG|jpeg|JPG|jpg|PNG|png|GIF|gif)$)";
-  /**
    * Error message if no valid extension found
    */
   public static final String NO_VALID_EXT_FOUND_ERROR_MESSAGE =

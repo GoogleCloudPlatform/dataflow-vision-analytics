@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
  * ProcessImageResponse {@link ProcessImageResponseDoFn} class parses the image response for
  * specific annotation and using image response builder output the table and table row for BigQuery
  */
-@SuppressWarnings("serial")
 public class ProcessImageResponseDoFn
     extends DoFn<KV<String, AnnotateImageResponse>, KV<BQDestination, TableRow>> {
   private static final long serialVersionUID = 1L;
@@ -53,7 +52,6 @@ public class ProcessImageResponseDoFn
       OutputReceiver<KV<BQDestination,TableRow>> out) {
     String imageFileURI = element.getKey();
     AnnotateImageResponse annotationResponse = element.getValue();
-
 
     VisionAnalyticsPipeline.processedFiles.inc();
 
@@ -112,19 +110,7 @@ public class ProcessImageResponseDoFn
 //                                Util.toTableRow(row)));
 //                      }
 //                    }
-//                    break;
-//                  default:
-//                    String errorMessage = String.format("Feature Type %s Not Supported", key);
-//                    LOG.error(Util.FEATURE_TYPE_NOT_SUPPORTED, key);
-//                    out.output(
-//                        KV.of(
-//                            Util.BQ_TABLE_NAME_MAP.get("BQ_ERROR_TABLE"),
-//                            Util.toTableRow(
-//                                Row.withSchema(Util.errorSchema)
-//                                    .addValues(
-//                                        imageFileURI, Util.getTimeStamp(), errorMessage, null)
-//                                    .build())));
-//                }
+//                    break;   }
 //              } catch (Exception e) {
 //                LOG.error(
 //                    "Error '{}' processing response for file '{}'", e.getMessage(), imageFileURI);

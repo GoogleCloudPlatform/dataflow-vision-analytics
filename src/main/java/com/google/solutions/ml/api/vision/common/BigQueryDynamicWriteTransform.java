@@ -62,7 +62,6 @@ public class BigQueryDynamicWriteTransform
             .withFormatFunction(KV::getValue)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND)
             .withoutValidation()
-//            .withMethod(Method.STREAMING_INSERTS)
             .withClustering()
             .ignoreInsertIds()
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));

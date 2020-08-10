@@ -37,7 +37,7 @@ public abstract class BatchRequestsTransform extends
             private Random random = new Random();
             @Override
             public Integer apply(String input) {
-              return random.nextInt(16);
+              return random.nextInt(getKeyRange());
             }
           }))
           .apply("Group Into Batches", GroupIntoBatches.ofSize(getBatchSize()))

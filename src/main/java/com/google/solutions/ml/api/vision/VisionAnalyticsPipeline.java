@@ -18,8 +18,7 @@ package com.google.solutions.ml.api.vision;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
-import com.google.cloud.vision.v1.Feature;
-import com.google.cloud.vision.v1.Feature.Type;
+import com.google.common.collect.ImmutableSet;
 import com.google.solutions.ml.api.vision.common.AnnotateImagesDoFn;
 import com.google.solutions.ml.api.vision.common.AnnotateImagesSimulatorDoFn;
 import com.google.solutions.ml.api.vision.common.BatchRequestsTransform;
@@ -35,10 +34,9 @@ import com.google.solutions.ml.api.vision.processor.LandmarkProcessor;
 import com.google.solutions.ml.api.vision.processor.LogoProcessor;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -82,6 +80,13 @@ public class VisionAnalyticsPipeline {
   public static final Distribution batchSizeDistribution = Metrics
       .distribution(VisionAnalyticsPipeline.class, "batchSizeDistribution");
 
+
+  private static final Set<String> SUPPORTED_CONTENT_TYPES = ImmutableSet.of(
+      "image/jpeg", "image/png", "image/tiff", "image/tif", "image/gif"
+  );
+
+  public static final String ACCEPTED_FILE_PATTERN = "(^.*\\.(JPEG|jpeg|JPG|jpg|PNG|png|GIF|gif|TIFF|tiff|TIF|tif)$)";
+
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
    * blocking execution is required, use the {@link VisionAnalyticsPipeline#run(VisionAnalyticsPipelineOptions)}
@@ -112,47 +117,14 @@ public class VisionAnalyticsPipeline {
 
     PCollection<String> imageFileUris;
     if (options.getSubscriberId() != null) {
-      PCollection<PubsubMessage> pubSubNotifications = p.begin().apply("Read PubSub",
-          PubsubIO.readMessagesWithAttributes().fromSubscription(options.getSubscriberId()));
-      imageFileUris = pubSubNotifications
-          .apply("PubSub to GCS URIs", ParDo.of(new PubSubNotificationToGCSUriDoFn()))
-          .apply(
-              "Fixed Window",
-              Window.<String>into(
-                  FixedWindows.of(Duration.standardSeconds(options.getWindowInterval())))
-                  .triggering(AfterWatermark.pastEndOfWindow())
-                  .discardingFiredPanes()
-                  .withAllowedLateness(Duration.ZERO));
+      imageFileUris = convertPubSubNotificationsToGCSURIs(p, options);
       isBatchJob = false;
     } else if (options.getFileList() != null) {
-      PCollection<Metadata> allFiles = p.begin()
-          .apply(Create.of(Arrays.asList(options.getFileList().split(","))))
-          .apply("List GCS Bucket(s)", FileIO.matchAll());
-      imageFileUris = allFiles.apply(ParDo.of(new DoFn<Metadata, String>() {
-        private static final long serialVersionUID = 1L;
-
-        @ProcessElement
-        public void processElement(@Element Metadata metadata, OutputReceiver<String> out) {
-          out.output(metadata.resourceId().toString());
-        }
-      }));
+      imageFileUris = listGCSFiles(p, options);
       isBatchJob = true;
     } else {
       throw new RuntimeException("Either subscriber id or the file list should be provided.");
     }
-
-    // TODO: filtering of pubsub messages ideally should be done by mime type.
-    PCollection<String> filteredImages = imageFileUris
-        .apply("Filter out non-image files",
-            Filter.by((SerializableFunction<String, Boolean>) fileName -> {
-              totalFiles.inc();
-              if (fileName.matches(Util.FILE_PATTERN)) {
-                return true;
-              }
-              LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
-              rejectedFiles.inc();
-              return false;
-            }));
 
 //    PCollectionView<Map<String, ImageContext>> imageContext = null;
 //    PCollection<List<AnnotateImageResponse>> annotationResponses = filteredImages
@@ -176,7 +148,7 @@ public class VisionAnalyticsPipeline {
 //          }
 //        }));
 
-    PCollection<Iterable<String>> batchedImageURIs = filteredImages
+    PCollection<Iterable<String>> batchedImageURIs = imageFileUris
         .apply("Batch images",
             BatchRequestsTransform.create(options.getBatchSize(), options.getKeyRange()));
 
@@ -195,13 +167,9 @@ public class VisionAnalyticsPipeline {
             "Process Annotations",
             ParDo.of(new ProcessImageResponseDoFn(new ArrayList<>(processors.values()))));
 
-    Map<String, TableDetails> tableNameToTableDetailsMap = new HashMap<>();
-    processors.forEach(
-        (tableName, processor) -> tableNameToTableDetailsMap
-        .put(tableName, processor.destinationTableDetails()));
-
     annotationOutcome.apply("Write To BigQuery", new BigQueryDynamicWriteTransform(
-        options.getVisionApiProjectId(), options.getDatasetName(), tableNameToTableDetailsMap));
+        options.getVisionApiProjectId(), options.getDatasetName(),
+        tableNameToTableDetailsMap(processors)));
 
     batchedImageURIs.apply("Collect Batch Stats", ParDo.of(new DoFn<Iterable<String>, Boolean>() {
       private static final long serialVersionUID = 1L;
@@ -220,6 +188,59 @@ public class VisionAnalyticsPipeline {
     }
 
     return pipelineResult;
+  }
+
+  static Map<String, TableDetails> tableNameToTableDetailsMap(
+      Map<String, AnnotationProcessor> processors) {
+    Map<String, TableDetails> tableNameToTableDetailsMap = new HashMap<>();
+    processors.forEach(
+        (tableName, processor) -> tableNameToTableDetailsMap
+            .put(tableName, processor.destinationTableDetails()));
+    return tableNameToTableDetailsMap;
+  }
+
+  static PCollection<String> convertPubSubNotificationsToGCSURIs(
+      Pipeline p, VisionAnalyticsPipelineOptions options) {
+    PCollection<String> imageFileUris;
+    PCollection<PubsubMessage> pubSubNotifications = p.begin().apply("Read PubSub",
+        PubsubIO.readMessagesWithAttributes().fromSubscription(options.getSubscriberId()));
+    imageFileUris = pubSubNotifications
+        .apply("PubSub to GCS URIs",
+            ParDo.of(PubSubNotificationToGCSUriDoFn.create(SUPPORTED_CONTENT_TYPES)))
+        .apply(
+            "Fixed Window",
+            Window.<String>into(
+                FixedWindows.of(Duration.standardSeconds(options.getWindowInterval())))
+                .triggering(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO));
+    return imageFileUris;
+  }
+
+  static PCollection<String> listGCSFiles(Pipeline p, VisionAnalyticsPipelineOptions options) {
+    PCollection<String> imageFileUris;
+    PCollection<Metadata> allFiles = p.begin()
+        .apply(Create.of(Arrays.asList(options.getFileList().split(","))))
+        .apply("List GCS Bucket(s)", FileIO.matchAll());
+    imageFileUris = allFiles.apply(ParDo.of(new DoFn<Metadata, String>() {
+      private static final long serialVersionUID = 1L;
+
+      @ProcessElement
+      public void processElement(@Element Metadata metadata, OutputReceiver<String> out) {
+        out.output(metadata.resourceId().toString());
+      }
+    }))
+        .apply("Filter out non-image files",
+            Filter.by((SerializableFunction<String, Boolean>) fileName -> {
+              totalFiles.inc();
+              if (fileName.matches(ACCEPTED_FILE_PATTERN)) {
+                return true;
+              }
+              LOG.warn(Util.NO_VALID_EXT_FOUND_ERROR_MESSAGE, fileName);
+              rejectedFiles.inc();
+              return false;
+            }));
+    return imageFileUris;
   }
 
   private static Map<String, AnnotationProcessor> configureProcessors(
@@ -241,13 +262,6 @@ public class VisionAnalyticsPipeline {
     tableName = options.getErrorLogTable();
     result.put(tableName, new ErrorProcessor(tableName));
 
-    return result;
-  }
-
-  private static List<Feature> convertFeatureTypesToFeatures(List<Type> features) {
-    List<Feature> result = new ArrayList<>();
-    features.forEach(
-        type -> result.add(Feature.newBuilder().setType(type).build()));
     return result;
   }
 
