@@ -15,6 +15,7 @@
  */
 package com.google.solutions.ml.api.vision;
 
+import com.google.api.gax.rpc.ResourceExhaustedException;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.Feature;
@@ -24,6 +25,7 @@ import com.google.cloud.vision.v1.ImageSource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -97,8 +99,28 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
           requests.add(request.build());
         });
 
-    List<AnnotateImageResponse> responses =
-        visionApiClient.batchAnnotateImages(requests).getResponsesList();
+    List<AnnotateImageResponse> responses;
+    int numberOfTries = 0;
+    int maxNumberOfAttempts = 3;
+    while (true) {
+      try {
+        responses = visionApiClient.batchAnnotateImages(requests).getResponsesList();
+        break;
+      } catch (ResourceExhaustedException e) {
+        if (++numberOfTries > maxNumberOfAttempts) {
+          LOG.info("Exhausted the number of retry attempts ({}).", maxNumberOfAttempts);
+          throw e;
+        }
+        int sleepSeconds = 30 * numberOfTries + new Random().nextInt(100);
+        LOG.info("Received {}. Occurrence: {}. Will retry in {} seconds.",
+            e.getClass().getName(), numberOfTries, sleepSeconds);
+        try {
+          TimeUnit.SECONDS.sleep(sleepSeconds);
+        } catch (InterruptedException interruptedException) {
+          // Do nothing
+        }
+      }
+    }
 
     int index = 0;
     for (AnnotateImageResponse response : responses) {
