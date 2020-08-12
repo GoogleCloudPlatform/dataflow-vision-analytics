@@ -25,7 +25,6 @@ buildscript {
             url "https://plugins.gradle.org/m2/"
         }
         dependencies {
-            classpath "net.ltgt.gradle:gradle-apt-plugin:0.19"
             classpath "gradle.plugin.com.google.cloud.tools:jib-gradle-plugin:2.4.0"
             classpath "com.diffplug.spotless:spotless-plugin-gradle:3.24.2"
         }
@@ -43,7 +42,6 @@ apply plugin: 'java'
 apply plugin: 'application'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
-apply plugin: "net.ltgt.apt"
 apply plugin: 'com.google.cloud.tools.jib'
 apply plugin: "com.diffplug.gradle.spotless"
 // Licence header enforced by spotless
@@ -118,7 +116,7 @@ jar {
 
 compileJava {
     // Add additional jvm argument
-    options.compilerArgs.addAll(['-Xlint:all'])
+    options.compilerArgs.addAll(['-Xlint:all', '-Xlint:-processing'])
 }
 
 // default tasks when you run ./gradlew
