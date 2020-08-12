@@ -25,7 +25,7 @@ buildscript {
             url "https://plugins.gradle.org/m2/"
         }
         dependencies {
-            classpath "gradle.plugin.com.google.cloud.tools:jib-gradle-plugin:2.4.0"
+            classpath "gradle.plugin.com.google.cloud.tools:jib-gradle-plugin:2.5.0"
             classpath "com.diffplug.spotless:spotless-plugin-gradle:3.24.2"
         }
     }
