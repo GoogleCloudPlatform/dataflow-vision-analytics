@@ -33,9 +33,9 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
   void setSubscriberId(String value);
 
   @Description("Google Cloud Storage files to process")
-  String getFileList();
+  List<String> getFileList();
 
-  void setFileList(String value);
+  void setFileList(List<String> value);
 
   @Description("Key range")
   @Default.Integer(1)

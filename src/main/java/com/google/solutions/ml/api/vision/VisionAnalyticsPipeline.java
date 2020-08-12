@@ -25,7 +25,6 @@ import com.google.solutions.ml.api.vision.processor.FaceAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.LabelAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.LandmarkAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.LogoAnnotationProcessor;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -120,28 +119,6 @@ public class VisionAnalyticsPipeline {
     } else {
       throw new RuntimeException("Either subscriber id or the file list should be provided.");
     }
-
-//    PCollectionView<Map<String, ImageContext>> imageContext = null;
-//    PCollection<List<AnnotateImageResponse>> annotationResponses = filteredImages
-//        .apply("Annotate images", CloudVision.annotateImagesFromGcsUri(imageContext,
-//            converFeatureTypesToFeatures(options
-//                .getFeatures()), options.getBatchSize(), 1));
-//
-//    annotationResponses
-//        .apply("Standard processing", ParDo.of(new DoFn<List<AnnotateImageResponse>, String>() {
-//          @ProcessElement
-//          public void process(@Element List<AnnotateImageResponse> element,
-//              OutputReceiver<String> outputReceiver) {
-//            element.forEach(e -> {
-//              ImageAnnotationContext context = e.getContext();
-//              if (context == null) {
-//                LOG.info("Empty context");
-//                return;
-//              }
-//              LOG.info("Context.imageURI: {}", context.getUri());
-//            });
-//          }
-//        }));
 
     PCollection<Iterable<String>> batchedImageURIs = imageFileUris
         .apply("Batch images",
@@ -244,8 +221,8 @@ public class VisionAnalyticsPipeline {
   /**
    * Reads the GCS buckets provided by {@link VisionAnalyticsPipelineOptions#getFileList()}.
    *
-   * The file list can contain multiple entries separated by the comma and can contain wildcards
-   * supported by {@link FileIO#matchAll()}.
+   * The file list can contain multiple entries. Each entry can contain wildcards supported by
+   * {@link FileIO#matchAll()}.
    *
    * Files are filtered based on their suffixes as defined in {@link VisionAnalyticsPipeline#ACCEPTED_FILE_PATTERN}.
    *
@@ -254,7 +231,7 @@ public class VisionAnalyticsPipeline {
   static PCollection<String> listGCSFiles(Pipeline p, VisionAnalyticsPipelineOptions options) {
     PCollection<String> imageFileUris;
     PCollection<Metadata> allFiles = p.begin()
-        .apply(Create.of(Arrays.asList(options.getFileList().split(","))))
+        .apply(Create.of(options.getFileList()))
         .apply("List GCS Bucket(s)", FileIO.matchAll());
     imageFileUris = allFiles.apply(ParDo.of(new DoFn<Metadata, String>() {
       private static final long serialVersionUID = 1L;
