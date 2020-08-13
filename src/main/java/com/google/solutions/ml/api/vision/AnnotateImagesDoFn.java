@@ -15,6 +15,7 @@
  */
 package com.google.solutions.ml.api.vision;
 
+import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.gax.rpc.ResourceExhaustedException;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
@@ -25,7 +26,6 @@ import com.google.cloud.vision.v1.ImageSource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -100,8 +100,15 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
         });
 
     List<AnnotateImageResponse> responses;
+
+    ExponentialBackOff backoff = new ExponentialBackOff.Builder()
+        .setInitialIntervalMillis(10 * 1000 /* 10 seconds */)
+        .setMaxElapsedTimeMillis(5 * 60 * 1000 /* 5 minutes */)
+        .setMaxIntervalMillis(90 * 1000 /* 90 seconds */)
+        .setMultiplier(1.5)
+        .setRandomizationFactor(0.5)
+        .build();
     int numberOfTries = 0;
-    int maxNumberOfAttempts = 3;
     while (true) {
       try {
         VisionAnalyticsPipeline.numberOfRequests.inc();
@@ -109,15 +116,20 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
         break;
       } catch (ResourceExhaustedException e) {
         VisionAnalyticsPipeline.numberOfQuotaExceededRequests.inc();
-        if (++numberOfTries > maxNumberOfAttempts) {
-          LOG.info("Exhausted the number of retry attempts ({}).", maxNumberOfAttempts);
+        long waitInMillis = 0;
+        try {
+          waitInMillis = backoff.nextBackOffMillis();
+        } catch (IOException ioException) {
+          // Will not occur with this implementation of Backoff.
+        }
+        if (waitInMillis == ExponentialBackOff.STOP) {
+          LOG.warn("Reached the limit of backoff retries. Throwing the exception to the pipeline");
           throw e;
         }
-        int sleepSeconds = 30 * numberOfTries + new Random().nextInt(100);
-        LOG.info("Received {}. Occurrence: {}. Will retry in {} seconds.",
-            e.getClass().getName(), numberOfTries, sleepSeconds);
+        LOG.info("Received {}. Occurrence: {}. Will retry in {} seconds.", e.getClass().getName(),
+            numberOfTries, waitInMillis / 1000);
         try {
-          TimeUnit.SECONDS.sleep(sleepSeconds);
+          TimeUnit.MILLISECONDS.sleep(waitInMillis);
         } catch (InterruptedException interruptedException) {
           // Do nothing
         }
