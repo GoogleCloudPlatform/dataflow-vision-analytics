@@ -103,7 +103,7 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
 
     ExponentialBackOff backoff = new ExponentialBackOff.Builder()
         .setInitialIntervalMillis(10 * 1000 /* 10 seconds */)
-        .setMaxElapsedTimeMillis(5 * 60 * 1000 /* 5 minutes */)
+        .setMaxElapsedTimeMillis(10 * 60 * 1000 /* 10 minutes */)
         .setMaxIntervalMillis(90 * 1000 /* 90 seconds */)
         .setMultiplier(1.5)
         .setRandomizationFactor(0.5)
