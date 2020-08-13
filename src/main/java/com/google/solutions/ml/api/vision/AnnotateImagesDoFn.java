@@ -104,9 +104,11 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
     int maxNumberOfAttempts = 3;
     while (true) {
       try {
+        VisionAnalyticsPipeline.numberOfRequests.inc();
         responses = visionApiClient.batchAnnotateImages(requests).getResponsesList();
         break;
       } catch (ResourceExhaustedException e) {
+        VisionAnalyticsPipeline.numberOfQuotaExceededRequests.inc();
         if (++numberOfTries > maxNumberOfAttempts) {
           LOG.info("Exhausted the number of retry attempts ({}).", maxNumberOfAttempts);
           throw e;

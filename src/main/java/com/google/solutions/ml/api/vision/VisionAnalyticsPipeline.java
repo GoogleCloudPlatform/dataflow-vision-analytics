@@ -70,6 +70,10 @@ public class VisionAnalyticsPipeline {
       .counter(VisionAnalyticsPipeline.class, "rejectedFiles");
   public static final Counter processedFiles = Metrics
       .counter(VisionAnalyticsPipeline.class, "processedFiles");
+  public static final Counter numberOfRequests = Metrics
+      .counter(VisionAnalyticsPipeline.class, "numberOfRequests");
+  public static final Counter numberOfQuotaExceededRequests = Metrics
+      .counter(VisionAnalyticsPipeline.class, "numberOfQuotaExceededRequests");
 
   public static final Distribution batchSizeDistribution = Metrics
       .distribution(VisionAnalyticsPipeline.class, "batchSizeDistribution");

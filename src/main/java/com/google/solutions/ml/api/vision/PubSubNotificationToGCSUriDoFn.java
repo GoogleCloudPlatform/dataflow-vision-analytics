@@ -50,8 +50,10 @@ public abstract class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage,
       LOG.warn("PubSub event type '{}' will not be processed", eventType);
       return;
     }
+    VisionAnalyticsPipeline.totalFiles.inc();
     String contentType = message.getAttribute("contentType");
     if (contentType != null && !supportedContentTypes().contains(contentType)) {
+      VisionAnalyticsPipeline.rejectedFiles.inc();
       LOG.warn("Content type '{}' is not supported. "
               + "Refer to https://cloud.google.com/vision/docs/supported-files for details.",
           eventType);
