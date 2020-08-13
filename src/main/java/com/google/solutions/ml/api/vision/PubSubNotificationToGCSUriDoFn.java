@@ -16,7 +16,10 @@
 
 package com.google.solutions.ml.api.vision;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
@@ -51,7 +54,9 @@ public abstract class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage,
       return;
     }
     VisionAnalyticsPipeline.totalFiles.inc();
-    String contentType = message.getAttribute("contentType");
+
+    String contentType = getContentType(message);
+
     if (contentType != null && !supportedContentTypes().contains(contentType)) {
       VisionAnalyticsPipeline.rejectedFiles.inc();
       LOG.warn("Content type '{}' is not supported. "
@@ -68,6 +73,17 @@ public abstract class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage,
     c.output(fileName);
 
     LOG.debug("GCS URI: {}", fileName);
+  }
+
+  private String getContentType(PubsubMessage message) {
+    try {
+      JsonNode payloadJson = new ObjectMapper().readTree(message.getPayload());
+      JsonNode contentTypeNode = payloadJson.get("contentType");
+      return contentTypeNode == null ? null : contentTypeNode.asText();
+    } catch (IOException e) {
+      LOG.warn("Failed to parse pubsub payload: ", e);
+      return null;
+    }
   }
 
   public static Builder builder() {
