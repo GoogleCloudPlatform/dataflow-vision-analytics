@@ -108,7 +108,6 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
         .setMultiplier(1.5)
         .setRandomizationFactor(0.5)
         .build();
-    int numberOfTries = 0;
     while (true) {
       try {
         VisionAnalyticsPipeline.numberOfRequests.inc();
@@ -126,8 +125,8 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
           LOG.warn("Reached the limit of backoff retries. Throwing the exception to the pipeline");
           throw e;
         }
-        LOG.info("Received {}. Occurrence: {}. Will retry in {} seconds.", e.getClass().getName(),
-            numberOfTries, waitInMillis / 1000);
+        LOG.info("Received {}. Will retry in {} seconds.", e.getClass().getName(),
+            waitInMillis / 1000);
         try {
           TimeUnit.MILLISECONDS.sleep(waitInMillis);
         } catch (InterruptedException interruptedException) {
