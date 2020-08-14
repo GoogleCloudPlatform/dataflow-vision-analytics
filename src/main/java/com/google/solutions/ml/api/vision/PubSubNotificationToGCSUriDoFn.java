@@ -55,26 +55,31 @@ public abstract class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage,
     }
     VisionAnalyticsPipeline.totalFiles.inc();
 
-    String contentType = getContentType(message);
-
-    if (contentType != null && !supportedContentTypes().contains(contentType)) {
-      VisionAnalyticsPipeline.rejectedFiles.inc();
-      LOG.warn("Content type '{}' is not supported. "
-              + "Refer to https://cloud.google.com/vision/docs/supported-files for details.",
-          eventType);
-      return;
-    }
-
     String bucket = message.getAttribute("bucketId");
     String object = message.getAttribute("objectId");
     GcsPath uri = GcsPath.fromComponents(bucket, object);
     String fileName = uri.toString();
+
+    String contentType = getContentType(message);
+
+    if (contentType != null && !supportedContentTypes().contains(contentType)) {
+      VisionAnalyticsPipeline.rejectedFiles.inc();
+      LOG.warn("File {} is rejected - content type '{}' is not supported. "
+              + "Refer to https://cloud.google.com/vision/docs/supported-files for details.",
+          fileName, contentType);
+      return;
+    }
 
     c.output(fileName);
 
     LOG.debug("GCS URI: {}", fileName);
   }
 
+  /**
+   * Extract content type from PubSub payload
+   *
+   * @return content type or null if none found.
+   */
   private String getContentType(PubsubMessage message) {
     try {
       JsonNode payloadJson = new ObjectMapper().readTree(message.getPayload());
