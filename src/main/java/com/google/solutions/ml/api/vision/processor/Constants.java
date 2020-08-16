@@ -51,8 +51,16 @@ interface Constants {
     String VERTEX_X = "x";
     String VERTEX_Y = "y";
     String VERTEX_Z = "z";
-  }
 
+    String DOMINANT_COLORS = "dominant_colors";
+    String PIXEL_FRACTION = "pixel_fraction";
+    String COLOR_RED = "red";
+    String COLOR_GREEN = "green";
+    String COLOR_BLUE = "blue";
+    String COLOR_ALPHA = "alpha";
+    String COLOR = "color";
+    String COLORS = "colors";
+  }
 
   List<TableFieldSchema> VERTEX_FIELDS = Arrays.asList(
       new TableFieldSchema().setName(Field.VERTEX_X).setType("FLOAT").setMode("REQUIRED"),

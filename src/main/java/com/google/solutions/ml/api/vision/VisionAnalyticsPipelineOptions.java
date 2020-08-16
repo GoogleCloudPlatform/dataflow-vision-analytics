@@ -103,6 +103,12 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setFaceAnnotationTable(String value);
 
+  @Description("Table name for image properties")
+  @Default.String("image_properties")
+  String getImagePropertiesTable();
+
+  void setImagePropertiesTable(String value);
+
   @Description("Table name for error logs")
   @Default.String("error_log")
   String getErrorLogTable();

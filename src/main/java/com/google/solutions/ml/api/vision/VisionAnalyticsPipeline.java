@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.solutions.ml.api.vision.processor.AnnotateImageResponseProcessor;
 import com.google.solutions.ml.api.vision.processor.ErrorProcessor;
 import com.google.solutions.ml.api.vision.processor.FaceAnnotationProcessor;
+import com.google.solutions.ml.api.vision.processor.ImagePropertiesProcessor;
 import com.google.solutions.ml.api.vision.processor.LabelAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.LandmarkAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.LogoAnnotationProcessor;
@@ -278,6 +279,9 @@ public class VisionAnalyticsPipeline {
 
     tableName = options.getFaceAnnotationTable();
     result.put(tableName, new FaceAnnotationProcessor(tableName));
+
+    tableName = options.getImagePropertiesTable();
+    result.put(tableName, new ImagePropertiesProcessor(tableName));
 
     tableName = options.getErrorLogTable();
     result.put(tableName, new ErrorProcessor(tableName));
