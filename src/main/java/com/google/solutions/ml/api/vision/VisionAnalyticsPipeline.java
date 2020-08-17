@@ -114,7 +114,7 @@ public class VisionAnalyticsPipeline {
     } else if (options.getFileList() != null) {
       imageFileUris = listGCSFiles(p, options);
     } else {
-      throw new RuntimeException("Either subscriber id or the file list should be provided.");
+      throw new RuntimeException("Either the subscriber id or the file list should be provided.");
     }
 
     PCollection<Iterable<String>> batchedImageURIs = imageFileUris
@@ -222,8 +222,8 @@ public class VisionAnalyticsPipeline {
   static PCollection<String> listGCSFiles(Pipeline p, VisionAnalyticsPipelineOptions options) {
     PCollection<String> imageFileUris;
     PCollection<Metadata> allFiles = p.begin()
-        .apply(Create.of(options.getFileList()))
-        .apply("List GCS Bucket(s)", FileIO.matchAll());
+        .apply("Get File List", Create.of(options.getFileList()))
+        .apply("Match GCS Files", FileIO.matchAll());
     imageFileUris = allFiles.apply(ParDo.of(new DoFn<Metadata, String>() {
       private static final long serialVersionUID = 1L;
 
