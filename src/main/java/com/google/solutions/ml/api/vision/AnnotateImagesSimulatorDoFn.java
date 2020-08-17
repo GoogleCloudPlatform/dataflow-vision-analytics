@@ -20,6 +20,7 @@ import com.google.cloud.vision.v1.AnnotateImageResponse.Builder;
 import com.google.cloud.vision.v1.Feature;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
@@ -48,7 +49,7 @@ public class AnnotateImagesSimulatorDoFn extends
       OutputReceiver<KV<String, AnnotateImageResponse>> out) {
 
     try {
-      Thread.sleep(300);
+      Thread.sleep(500 * (new Random().nextInt(1000)));
     } catch (InterruptedException e) {
       // Do nothing
     }
