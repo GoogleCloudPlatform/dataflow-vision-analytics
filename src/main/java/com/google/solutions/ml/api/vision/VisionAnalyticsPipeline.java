@@ -293,7 +293,7 @@ public class VisionAnalyticsPipeline {
    */
   private static void printInterestingMetrics(boolean isBatchJob, PipelineResult pipelineResult) {
     try {
-      if (!isBatchJob && pipelineResult.getState() != State.DONE) {
+      if (!isBatchJob || pipelineResult.getState() != State.DONE) {
         return;
       }
     } catch (Exception e) {
