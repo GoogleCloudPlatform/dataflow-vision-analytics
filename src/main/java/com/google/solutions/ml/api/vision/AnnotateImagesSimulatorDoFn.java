@@ -49,7 +49,7 @@ public class AnnotateImagesSimulatorDoFn extends
       OutputReceiver<KV<String, AnnotateImageResponse>> out) {
 
     try {
-      Thread.sleep(500 * (new Random().nextInt(1000)));
+      Thread.sleep(500 + (new Random().nextInt(1000)));
     } catch (InterruptedException e) {
       // Do nothing
     }
