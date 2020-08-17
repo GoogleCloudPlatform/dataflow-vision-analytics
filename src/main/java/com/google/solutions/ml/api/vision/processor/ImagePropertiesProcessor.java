@@ -131,8 +131,10 @@ public class ImagePropertiesProcessor implements AnnotateImageResponseProcessor 
       String gcsURI, AnnotateImageResponse response) {
     ImageProperties imageProperties = response.getImagePropertiesAnnotation();
     if (imageProperties == null || !imageProperties.hasDominantColors()) {
-      counter.inc();
+      return null;
     }
+
+    counter.inc();
 
     TableRow result = ProcessorUtils.startRow(gcsURI);
 
