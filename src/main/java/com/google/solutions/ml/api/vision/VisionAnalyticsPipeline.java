@@ -156,9 +156,7 @@ public class VisionAnalyticsPipeline {
 
     PipelineResult pipelineResult = p.run();
 
-    if (isBatchJob && pipelineResult.getState() == State.DONE) {
-      printInterestingMetrics(pipelineResult);
-    }
+    printInterestingMetrics(isBatchJob, pipelineResult);
 
     return pipelineResult;
   }
@@ -293,7 +291,18 @@ public class VisionAnalyticsPipeline {
    * Helper method to print several metrics related to the pipeline processing. Notice that only
    * batch pipelines can print final metrics.
    */
-  private static void printInterestingMetrics(PipelineResult pipelineResult) {
+  private static void printInterestingMetrics(boolean isBatchJob, PipelineResult pipelineResult) {
+    try {
+      if (!isBatchJob && pipelineResult.getState() != State.DONE) {
+        return;
+      }
+    } catch (Exception e) {
+      // Several runners through unsupported exception.
+      LOG.info(
+          "Current runner doesn't support querying the pipeline result for state. No metrics will be output in the log.");
+      return;
+    }
+
     MetricResults metrics = pipelineResult.metrics();
     MetricQueryResults interestingMetrics = metrics.queryMetrics(MetricsFilter.builder()
         .addNameFilter(MetricNameFilter.inNamespace(VisionAnalyticsPipeline.class))
