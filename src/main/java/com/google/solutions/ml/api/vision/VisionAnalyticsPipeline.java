@@ -32,18 +32,13 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
-import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -113,15 +108,11 @@ public class VisionAnalyticsPipeline {
   public static PipelineResult run(VisionAnalyticsPipelineOptions options) {
     Pipeline p = Pipeline.create(options);
 
-    boolean isBatchJob;
-
     PCollection<String> imageFileUris;
     if (options.getSubscriberId() != null) {
       imageFileUris = convertPubSubNotificationsToGCSURIs(p, options);
-      isBatchJob = false;
     } else if (options.getFileList() != null) {
       imageFileUris = listGCSFiles(p, options);
-      isBatchJob = true;
     } else {
       throw new RuntimeException("Either subscriber id or the file list should be provided.");
     }
@@ -155,11 +146,7 @@ public class VisionAnalyticsPipeline {
 
     collectBatchStatistics(batchedImageURIs);
 
-    PipelineResult pipelineResult = p.run();
-
-    printInterestingMetrics(isBatchJob, pipelineResult);
-
-    return pipelineResult;
+    return p.run();
   }
 
   /**
@@ -289,29 +276,5 @@ public class VisionAnalyticsPipeline {
     result.put(tableName, new ErrorProcessor(tableName));
 
     return result;
-  }
-
-  /**
-   * Helper method to print several metrics related to the pipeline processing. Notice that only
-   * batch pipelines can print final metrics.
-   */
-  private static void printInterestingMetrics(boolean isBatchJob, PipelineResult pipelineResult) {
-    try {
-      if (!isBatchJob || pipelineResult.getState() != State.DONE) {
-        return;
-      }
-    } catch (Exception e) {
-      // Several runners through unsupported exception.
-      LOG.info(
-          "Current runner doesn't support querying the pipeline result for state. No metrics will be output in the log.");
-      return;
-    }
-
-    MetricResults metrics = pipelineResult.metrics();
-    MetricQueryResults interestingMetrics = metrics.queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(VisionAnalyticsPipeline.class))
-        .addNameFilter(MetricNameFilter.inNamespace(AnnotateImageResponseProcessor.class))
-        .build());
-    LOG.info("Pipeline completed. Metrics: {}", interestingMetrics.toString());
   }
 }
