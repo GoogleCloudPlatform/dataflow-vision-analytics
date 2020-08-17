@@ -22,14 +22,14 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
-import com.google.cloud.vision.v1.EntityAnnotation;
+import com.google.cloud.vision.v1.CropHint;
+import com.google.cloud.vision.v1.CropHintsAnnotation;
 import com.google.common.collect.ImmutableList;
 import com.google.solutions.ml.api.vision.BQDestination;
 import com.google.solutions.ml.api.vision.TableDetails;
 import com.google.solutions.ml.api.vision.TableSchemaProducer;
 import com.google.solutions.ml.api.vision.processor.Constants.Field;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.metrics.Counter;
@@ -49,7 +49,7 @@ public class CropHintAnnotationProcessor implements AnnotateImageResponseProcess
 
   private static final Logger LOG = LoggerFactory.getLogger(CropHintAnnotationProcessor.class);
   public final static Counter counter =
-      Metrics.counter(AnnotateImageResponseProcessor.class, "numberOfLandmarkAnnotations");
+      Metrics.counter(AnnotateImageResponseProcessor.class, "numberOfCropHintAnnotations");
 
   private static class SchemaProducer implements TableSchemaProducer {
 
@@ -64,19 +64,19 @@ public class CropHintAnnotationProcessor implements AnnotateImageResponseProcess
                   .setType("STRING")
                   .setMode("REQUIRED"),
               new TableFieldSchema()
-                  .setName(Field.MID_FIELD).setType("STRING")
-                  .setMode("NULLABLE"),
-              new TableFieldSchema()
-                  .setName(Field.DESCRIPTION_FIELD).setType("STRING")
-                  .setMode("REQUIRED"),
-              new TableFieldSchema()
-                  .setName(Field.SCORE_FIELD).setType("FLOAT")
-                  .setMode("REQUIRED"),
-              new TableFieldSchema()
-                  .setName(Field.BOUNDING_POLY).setType("RECORD")
-                  .setMode("NULLABLE").setFields(Constants.POLYGON_FIELDS),
-              new TableFieldSchema()
-                  .setName(Field.LOCATIONS).setType("GEOGRAPHY").setMode("REPEATED"),
+                  .setName(Field.CROP_HINTS).setType("RECORD")
+                  .setMode("REPEATED")
+                  .setFields(ImmutableList.of(
+                      new TableFieldSchema()
+                          .setName(Field.CONFIDENCE).setType("FLOAT")
+                          .setMode("REQUIRED"),
+                      new TableFieldSchema()
+                          .setName(Field.IMPORTANCE_FRACTION).setType("FLOAT")
+                          .setMode("REQUIRED"),
+                      new TableFieldSchema()
+                          .setName(Field.BOUNDING_POLY).setType("RECORD")
+                          .setMode("REQUIRED").setFields(Constants.POLYGON_FIELDS)
+                  )),
               new TableFieldSchema()
                   .setName(Field.TIMESTAMP_FIELD).setType("TIMESTAMP")
                   .setMode("REQUIRED"))
@@ -86,7 +86,7 @@ public class CropHintAnnotationProcessor implements AnnotateImageResponseProcess
 
   @Override
   public TableDetails destinationTableDetails() {
-    return TableDetails.create("Google Vision API Landmark Annotations",
+    return TableDetails.create("Google Vision API Crop Hint Annotations",
         new Clustering().setFields(Collections.singletonList(Field.GCS_URI_FIELD)),
         new TimePartitioning().setField(Field.TIMESTAMP_FIELD), new SchemaProducer());
   }
@@ -103,36 +103,31 @@ public class CropHintAnnotationProcessor implements AnnotateImageResponseProcess
   @Override
   public Iterable<KV<BQDestination, TableRow>> process(
       String gcsURI, AnnotateImageResponse response) {
-    int numberOfAnnotations = response.getLandmarkAnnotationsCount();
-    if (numberOfAnnotations == 0) {
+    CropHintsAnnotation cropHintsAnnotation = response.getCropHintsAnnotation();
+    if (cropHintsAnnotation == null) {
+      return null;
+    }
+    int cropHintsCount = cropHintsAnnotation.getCropHintsCount();
+    if (cropHintsCount == 0) {
       return null;
     }
 
-    counter.inc(numberOfAnnotations);
+    counter.inc();
 
-    Collection<KV<BQDestination, TableRow>> result = new ArrayList<>(numberOfAnnotations);
-    for (EntityAnnotation annotation : response.getLandmarkAnnotationsList()) {
-      TableRow row = ProcessorUtils.startRow(gcsURI);
-      row.put(Field.MID_FIELD, annotation.getMid());
-      row.put(Field.DESCRIPTION_FIELD, annotation.getDescription());
-      row.put(Field.SCORE_FIELD, annotation.getScore());
+    List<TableRow> cropHintRows = new ArrayList<>(cropHintsCount);
+    for (CropHint cropHint : cropHintsAnnotation.getCropHintsList()) {
+      TableRow cropHintRow = new TableRow();
+      cropHintRow.put(Field.BOUNDING_POLY,
+          ProcessorUtils.getBoundingPolyAsRow(cropHint.getBoundingPoly()));
+      cropHintRow.put(Field.CONFIDENCE, cropHint.getConfidence());
+      cropHintRow.put(Field.IMPORTANCE_FRACTION, cropHint.getImportanceFraction());
 
-      ProcessorUtils.extractBoundingPoly(annotation, row);
-
-      if (annotation.getLocationsCount() > 0) {
-        List<String> locations = new ArrayList<>(annotation.getLocationsCount());
-        annotation.getLocationsList().forEach(
-            location -> locations.add(
-                "POINT(" + location.getLatLng().getLongitude() + " " +
-                    location.getLatLng().getLatitude() + ")"));
-        row.put(Field.LOCATIONS, locations);
-      }
-
-      LOG.debug("Processing {}", row);
-      result.add(KV.of(destination, row));
+      cropHintRows.add(cropHintRow);
     }
 
-    return result;
+    TableRow result = ProcessorUtils.startRow(gcsURI);
+    result.put(Field.CROP_HINTS, cropHintRows);
+    LOG.debug("Processing {}", result);
+    return Collections.singletonList((KV.of(destination, result)));
   }
-
 }

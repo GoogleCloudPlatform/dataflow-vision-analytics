@@ -20,6 +20,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.common.collect.ImmutableSet;
 import com.google.solutions.ml.api.vision.processor.AnnotateImageResponseProcessor;
+import com.google.solutions.ml.api.vision.processor.CropHintAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.ErrorProcessor;
 import com.google.solutions.ml.api.vision.processor.FaceAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.ImagePropertiesProcessor;
@@ -280,6 +281,9 @@ public class VisionAnalyticsPipeline {
 
     tableName = options.getImagePropertiesTable();
     result.put(tableName, new ImagePropertiesProcessor(tableName));
+
+    tableName = options.getCropHintAnnotationTable();
+    result.put(tableName, new CropHintAnnotationProcessor(tableName));
 
     tableName = options.getErrorLogTable();
     result.put(tableName, new ErrorProcessor(tableName));

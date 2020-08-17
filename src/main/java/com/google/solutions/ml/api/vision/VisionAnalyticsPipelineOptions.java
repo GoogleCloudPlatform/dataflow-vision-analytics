@@ -109,6 +109,12 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setImagePropertiesTable(String value);
 
+  @Description("Table name for crop hint annotations")
+  @Default.String("crop_hint_annotation")
+  String getCropHintAnnotationTable();
+
+  void setCropHintAnnotationTable(String value);
+
   @Description("Table name for error logs")
   @Default.String("error_log")
   String getErrorLogTable();

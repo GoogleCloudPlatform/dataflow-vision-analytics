@@ -60,6 +60,9 @@ interface Constants {
     String COLOR_ALPHA = "alpha";
     String COLOR = "color";
     String COLORS = "colors";
+    String CONFIDENCE = "confidence";
+    String IMPORTANCE_FRACTION = "importance_fraction";
+    String CROP_HINTS = "crop_hints";
   }
 
   List<TableFieldSchema> VERTEX_FIELDS = Arrays.asList(
