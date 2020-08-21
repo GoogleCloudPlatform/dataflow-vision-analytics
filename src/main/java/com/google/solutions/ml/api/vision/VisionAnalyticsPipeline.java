@@ -205,7 +205,7 @@ public class VisionAnalyticsPipeline {
                 FixedWindows.of(Duration.standardSeconds(options.getWindowInterval())))
                 .triggering(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
-                .withAllowedLateness(Duration.ZERO));
+                .withAllowedLateness(Duration.standardMinutes(15)));
     return imageFileUris;
   }
 

@@ -114,24 +114,7 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
         responses = visionApiClient.batchAnnotateImages(requests).getResponsesList();
         break;
       } catch (ResourceExhaustedException e) {
-        VisionAnalyticsPipeline.numberOfQuotaExceededRequests.inc();
-        long waitInMillis = 0;
-        try {
-          waitInMillis = backoff.nextBackOffMillis();
-        } catch (IOException ioException) {
-          // Will not occur with this implementation of Backoff.
-        }
-        if (waitInMillis == ExponentialBackOff.STOP) {
-          LOG.warn("Reached the limit of backoff retries. Throwing the exception to the pipeline");
-          throw e;
-        }
-        LOG.info("Received {}. Will retry in {} seconds.", e.getClass().getName(),
-            waitInMillis / 1000);
-        try {
-          TimeUnit.MILLISECONDS.sleep(waitInMillis);
-        } catch (InterruptedException interruptedException) {
-          // Do nothing
-        }
+        handleQuotaReachedException(backoff, e);
       }
     }
 
@@ -139,6 +122,34 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
     for (AnnotateImageResponse response : responses) {
       String imageUri = requests.get(index++).getImage().getSource().getImageUri();
       out.output(KV.of(imageUri, response));
+    }
+  }
+
+
+  /**
+   * Attempts to backoff unless reaches the max elapsed time.
+   *
+   * @param backoff
+   * @param e
+   */
+  void handleQuotaReachedException(ExponentialBackOff backoff, ResourceExhaustedException e) {
+    VisionAnalyticsPipeline.numberOfQuotaExceededRequests.inc();
+    long waitInMillis = 0;
+    try {
+      waitInMillis = backoff.nextBackOffMillis();
+    } catch (IOException ioException) {
+      // Will not occur with this implementation of Backoff.
+    }
+    if (waitInMillis == ExponentialBackOff.STOP) {
+      LOG.warn("Reached the limit of backoff retries. Throwing the exception to the pipeline");
+      throw e;
+    }
+    LOG.info("Received {}. Will retry in {} seconds.", e.getClass().getName(),
+        waitInMillis / 1000);
+    try {
+      TimeUnit.MILLISECONDS.sleep(waitInMillis);
+    } catch (InterruptedException interruptedException) {
+      // Do nothing
     }
   }
 }

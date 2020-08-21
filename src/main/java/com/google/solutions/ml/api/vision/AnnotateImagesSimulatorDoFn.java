@@ -47,7 +47,7 @@ public class AnnotateImagesSimulatorDoFn extends
   @ProcessElement
   public void processElement(@Element Iterable<String> imageUris,
       OutputReceiver<KV<String, AnnotateImageResponse>> out) {
-
+    VisionAnalyticsPipeline.numberOfRequests.inc();
     try {
       Thread.sleep(500 + (new Random().nextInt(1000)));
     } catch (InterruptedException e) {
