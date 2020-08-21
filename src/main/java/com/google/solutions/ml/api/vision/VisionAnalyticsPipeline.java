@@ -16,9 +16,14 @@
 package com.google.solutions.ml.api.vision;
 
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.solutions.ml.api.vision.processor.AnnotateImageResponseProcessor;
 import com.google.solutions.ml.api.vision.processor.CropHintAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.ErrorProcessor;
@@ -27,13 +32,18 @@ import com.google.solutions.ml.api.vision.processor.ImagePropertiesProcessor;
 import com.google.solutions.ml.api.vision.processor.LabelAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.LandmarkAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.LogoAnnotationProcessor;
+import com.google.solutions.ml.api.vision.processor.ProcessorUtils;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.metrics.Counter;
@@ -46,6 +56,7 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -144,7 +155,7 @@ public class VisionAnalyticsPipeline {
                 tableNameToTableDetailsMap(processors)).build())
     );
 
-    collectBatchStatistics(batchedImageURIs);
+    collectBatchStatistics(batchedImageURIs, options);
 
     return p.run();
   }
@@ -152,17 +163,43 @@ public class VisionAnalyticsPipeline {
   /**
    * Collect the statistics on batching the requests. The results are published to a metric.
    */
-  static void collectBatchStatistics(PCollection<Iterable<String>> batchedImageURIs) {
-    batchedImageURIs.apply("Collect Batch Stats", ParDo.of(new DoFn<Iterable<String>, Boolean>() {
-      private static final long serialVersionUID = 1L;
+  static void collectBatchStatistics(PCollection<Iterable<String>> batchedImageURIs,
+      VisionAnalyticsPipelineOptions options) {
+    PCollection<TableRow> batchInfo = batchedImageURIs
+        .apply("Collect Batch Stats", ParDo.of(new DoFn<Iterable<String>, TableRow>() {
+          private static final long serialVersionUID = 1L;
 
-      @ProcessElement
-      public void processElement(@Element Iterable<String> element) {
-        int[] numberOfElementsInTheBatch = new int[]{0};
-        element.forEach(x -> numberOfElementsInTheBatch[0]++);
-        batchSizeDistribution.update(numberOfElementsInTheBatch[0]);
-      }
-    }));
+          @ProcessElement
+          public void processElement(@Element Iterable<String> element, BoundedWindow window,
+              OutputReceiver<TableRow> out) {
+            int size = Iterables.size(element);
+            batchSizeDistribution.update(size);
+            TableRow row = new TableRow();
+            row.put("window", window.toString());
+            row.put("timestamp", ProcessorUtils.getTimeStamp());
+            row.put("size", size);
+            List<String> items = new ArrayList<>();
+            element.forEach(item -> items.add(item));
+            row.put("items", items);
+
+            out.output(row);
+          }
+        }));
+    batchInfo.apply(
+        BigQueryIO.writeTableRows()
+            .to(new TableReference().setProjectId(options.getVisionApiProjectId())
+                .setDatasetId(options.getDatasetName()).setTableId("batch_info"))
+            .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+            .withoutValidation()
+            .withClustering()
+            .ignoreInsertIds()
+            .withSchema(new TableSchema().setFields(ImmutableList.of(
+                new TableFieldSchema().setName("window").setType("STRING"),
+                new TableFieldSchema().setName("timestamp").setType("TIMESTAMP"),
+                new TableFieldSchema().setName("size").setType("NUMERIC"),
+                new TableFieldSchema().setName("items").setType("STRING").setMode("REPEATED")
+            )))
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
   }
 
   /**

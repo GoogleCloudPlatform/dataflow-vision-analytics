@@ -81,7 +81,7 @@ public class ProcessorUtils {
   /**
    * Formats the current timestamp in BigQuery compliant format
    */
-  private static String getTimeStamp() {
+  public static String getTimeStamp() {
     return TIMESTAMP_FORMATTER.print(Instant.now().toDateTime(DateTimeZone.UTC));
   }
 }
