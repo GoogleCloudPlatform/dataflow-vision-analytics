@@ -20,6 +20,8 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.solutions.ml.api.vision.processor.AnnotateImageResponseProcessor;
 import java.util.Collection;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
@@ -35,10 +37,14 @@ abstract public class ProcessImageResponseDoFn
 
   abstract Collection<AnnotateImageResponseProcessor> processors();
 
+  abstract Counter processedFileCounter();
+
   public static ProcessImageResponseDoFn create(
       Collection<AnnotateImageResponseProcessor> processors) {
     return builder()
         .processors(processors)
+        .processedFileCounter(Metrics
+            .counter(ProcessImageResponseDoFn.class, "processedFiles"))
         .build();
   }
 
@@ -48,7 +54,7 @@ abstract public class ProcessImageResponseDoFn
     String imageFileURI = element.getKey();
     AnnotateImageResponse annotationResponse = element.getValue();
 
-    VisionAnalyticsPipeline.processedFiles.inc();
+    processedFileCounter().inc();
 
     processors().forEach(processor -> {
       Iterable<KV<BQDestination, TableRow>> processingResult = processor
@@ -68,6 +74,8 @@ abstract public class ProcessImageResponseDoFn
   public abstract static class Builder {
 
     public abstract Builder processors(Collection<AnnotateImageResponseProcessor> processors);
+
+    public abstract Builder processedFileCounter(Counter processedFileCounter);
 
     public abstract ProcessImageResponseDoFn build();
   }

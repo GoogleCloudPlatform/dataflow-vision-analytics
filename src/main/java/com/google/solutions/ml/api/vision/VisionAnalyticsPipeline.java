@@ -76,8 +76,6 @@ public class VisionAnalyticsPipeline {
       .counter(VisionAnalyticsPipeline.class, "totalFiles");
   public static final Counter rejectedFiles = Metrics
       .counter(VisionAnalyticsPipeline.class, "rejectedFiles");
-  public static final Counter processedFiles = Metrics
-      .counter(VisionAnalyticsPipeline.class, "processedFiles");
   public static final Counter numberOfRequests = Metrics
       .counter(VisionAnalyticsPipeline.class, "numberOfRequests");
   public static final Counter numberOfQuotaExceededRequests = Metrics
@@ -179,7 +177,7 @@ public class VisionAnalyticsPipeline {
             row.put("timestamp", ProcessorUtils.getTimeStamp());
             row.put("size", size);
             List<String> items = new ArrayList<>();
-            element.forEach(item -> items.add(item));
+            element.forEach(items::add);
             row.put("items", items);
 
             out.output(row);
