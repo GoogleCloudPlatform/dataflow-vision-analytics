@@ -24,6 +24,8 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * ProcessImageResponse {@link ProcessImageResponseDoFn} class parses the image response for
@@ -34,6 +36,7 @@ abstract public class ProcessImageResponseDoFn
     extends DoFn<KV<String, AnnotateImageResponse>, KV<BQDestination, TableRow>> {
 
   private static final long serialVersionUID = 1L;
+  private static final Logger LOG = LoggerFactory.getLogger(ProcessImageResponseDoFn.class);
 
   abstract Collection<AnnotateImageResponseProcessor> processors();
 
@@ -54,6 +57,7 @@ abstract public class ProcessImageResponseDoFn
     String imageFileURI = element.getKey();
     AnnotateImageResponse annotationResponse = element.getValue();
 
+    LOG.debug("Processing annotations for file: {}", imageFileURI);
     processedFileCounter().inc();
 
     processors().forEach(processor -> {

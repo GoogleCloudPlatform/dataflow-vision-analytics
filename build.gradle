@@ -79,7 +79,6 @@ jib {
         appRoot = '/template/df-vision-api-template'
         entrypoint = 'INHERIT'
         environment = [DATAFLOW_JAVA_COMMAND_SPEC: '/template/df-vision-api-template/resources/java_command_spec.json']
-
     }
 }
 group 'com.google.solution'
