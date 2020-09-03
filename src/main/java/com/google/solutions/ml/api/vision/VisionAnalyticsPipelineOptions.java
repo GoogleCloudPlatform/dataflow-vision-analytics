@@ -79,6 +79,12 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setSimulate(boolean value);
 
+  @Description("Collect batch data")
+  @Default.Boolean(false)
+  boolean isCollectBatchData();
+
+  void setCollectBatchData(boolean value);
+
   @Description("Table name for label annotations")
   @Default.String("label_annotation")
   String getLabelAnnotationTable();

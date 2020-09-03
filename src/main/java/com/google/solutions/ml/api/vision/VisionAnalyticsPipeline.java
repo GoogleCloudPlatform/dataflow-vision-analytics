@@ -159,10 +159,13 @@ public class VisionAnalyticsPipeline {
   }
 
   /**
-   * Collect the statistics on batching the requests. The results are published to a metric.
+   * Collect the statistics on batching the requests. The results are published to a metric. If
+   * {@link VisionAnalyticsPipelineOptions#isCollectBatchData()} is true the batch data is saved to
+   * BigQuery table "batch_info".
    */
   static void collectBatchStatistics(PCollection<Iterable<String>> batchedImageURIs,
       VisionAnalyticsPipelineOptions options) {
+
     PCollection<TableRow> batchInfo = batchedImageURIs
         .apply("Collect Batch Stats", ParDo.of(new DoFn<Iterable<String>, TableRow>() {
           private static final long serialVersionUID = 1L;
@@ -172,17 +175,22 @@ public class VisionAnalyticsPipeline {
               OutputReceiver<TableRow> out) {
             int size = Iterables.size(element);
             batchSizeDistribution.update(size);
-            TableRow row = new TableRow();
-            row.put("window", window.toString());
-            row.put("timestamp", ProcessorUtils.getTimeStamp());
-            row.put("size", size);
-            List<String> items = new ArrayList<>();
-            element.forEach(items::add);
-            row.put("items", items);
+            if (options.isCollectBatchData()) {
+              TableRow row = new TableRow();
+              row.put("window", window.toString());
+              row.put("timestamp", ProcessorUtils.getTimeStamp());
+              row.put("size", size);
+              List<String> items = new ArrayList<>();
+              element.forEach(items::add);
+              row.put("items", items);
 
-            out.output(row);
+              out.output(row);
+            }
           }
         }));
+    if (!options.isCollectBatchData()) {
+      return;
+    }
     batchInfo.apply(
         BigQueryIO.writeTableRows()
             .to(new TableReference().setProjectId(options.getVisionApiProjectId())
