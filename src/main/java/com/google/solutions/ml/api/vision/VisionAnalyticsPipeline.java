@@ -172,10 +172,11 @@ public class VisionAnalyticsPipeline {
 
           @ProcessElement
           public void processElement(@Element Iterable<String> element, BoundedWindow window,
-              OutputReceiver<TableRow> out) {
+              OutputReceiver<TableRow> out, ProcessContext context) {
             int size = Iterables.size(element);
             batchSizeDistribution.update(size);
-            if (options.isCollectBatchData()) {
+            if (context.getPipelineOptions().as(VisionAnalyticsPipelineOptions.class)
+                .isCollectBatchData()) {
               TableRow row = new TableRow();
               row.put("window", window.toString());
               row.put("timestamp", ProcessorUtils.getTimeStamp());
