@@ -45,6 +45,11 @@ public class AnnotateImagesSimulatorDoFn extends
       OutputReceiver<KV<String, AnnotateImageResponse>> out) {
     VisionAnalyticsPipeline.numberOfRequests.inc();
     try {
+      /**
+       * It creates a pattern similar to using the actual APIs with 16 requests per batch and two features requested.
+       * If more sophisticated simulation is needed - externalize the values or make these parameters
+       * dependent on batch size and the number of features requested.
+       */
       Thread.sleep(500 + (new Random().nextInt(1000)));
     } catch (InterruptedException e) {
       // Do nothing
