@@ -26,6 +26,8 @@ import com.google.cloud.vision.v1.DominantColorsAnnotation;
 import com.google.cloud.vision.v1.ImageProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.solutions.ml.api.vision.BQDestination;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Mode;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Type;
 import com.google.solutions.ml.api.vision.TableDetails;
 import com.google.solutions.ml.api.vision.TableSchemaProducer;
 import com.google.solutions.ml.api.vision.processor.Constants.Field;
@@ -61,51 +63,51 @@ public class ImagePropertiesProcessor implements AnnotateImageResponseProcessor 
           ImmutableList.of(
               new TableFieldSchema()
                   .setName(Field.GCS_URI_FIELD)
-                  .setType("STRING")
-                  .setMode("REQUIRED"),
+                  .setType(Type.STRING)
+                  .setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.DOMINANT_COLORS).setType("RECORD")
-                  .setMode("REQUIRED")
+                  .setName(Field.DOMINANT_COLORS).setType(Type.RECORD)
+                  .setMode(Mode.REQUIRED)
                   .setFields(ImmutableList.of(
                       new TableFieldSchema()
-                          .setName(Field.COLORS).setType("RECORD")
-                          .setMode("REPEATED")
+                          .setName(Field.COLORS).setType(Type.RECORD)
+                          .setMode(Mode.REPEATED)
                           .setFields(ImmutableList.of(
                               new TableFieldSchema()
                                   .setName(Field.SCORE_FIELD)
-                                  .setType("FLOAT")
-                                  .setMode("REQUIRED"),
+                                  .setType(Type.FLOAT)
+                                  .setMode(Mode.REQUIRED),
                               new TableFieldSchema()
                                   .setName(Field.PIXEL_FRACTION)
-                                  .setType("FLOAT")
-                                  .setMode("REQUIRED"),
+                                  .setType(Type.FLOAT)
+                                  .setMode(Mode.REQUIRED),
                               new TableFieldSchema()
                                   .setName(Field.COLOR)
-                                  .setType("RECORD")
-                                  .setMode("REQUIRED")
+                                  .setType(Type.RECORD)
+                                  .setMode(Mode.REQUIRED)
                                   .setFields(ImmutableList.of(
                                       new TableFieldSchema()
                                           .setName(Field.COLOR_RED)
-                                          .setType("FLOAT")
-                                          .setMode("REQUIRED"),
+                                          .setType(Type.FLOAT)
+                                          .setMode(Mode.REQUIRED),
                                       new TableFieldSchema()
                                           .setName(Field.COLOR_BLUE)
-                                          .setType("FLOAT")
-                                          .setMode("REQUIRED"),
+                                          .setType(Type.FLOAT)
+                                          .setMode(Mode.REQUIRED),
                                       new TableFieldSchema()
                                           .setName(Field.COLOR_GREEN)
-                                          .setType("FLOAT")
-                                          .setMode("REQUIRED"),
+                                          .setType(Type.FLOAT)
+                                          .setMode(Mode.REQUIRED),
                                       new TableFieldSchema()
                                           .setName(Field.COLOR_ALPHA)
-                                          .setType("FLOAT")
-                                          .setMode("NULLABLE")
+                                          .setType(Type.FLOAT)
+                                          .setMode(Mode.NULLABLE)
                                   ))
                           ))
                   )),
               new TableFieldSchema()
-                  .setName(Field.TIMESTAMP_FIELD).setType("TIMESTAMP")
-                  .setMode("REQUIRED"))
+                  .setName(Field.TIMESTAMP_FIELD).setType(Type.TIMESTAMP)
+                  .setMode(Mode.REQUIRED))
       );
     }
   }

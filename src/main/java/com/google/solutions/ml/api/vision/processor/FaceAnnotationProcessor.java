@@ -26,6 +26,8 @@ import com.google.cloud.vision.v1.FaceAnnotation;
 import com.google.cloud.vision.v1.Position;
 import com.google.common.collect.ImmutableList;
 import com.google.solutions.ml.api.vision.BQDestination;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Mode;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Type;
 import com.google.solutions.ml.api.vision.TableDetails;
 import com.google.solutions.ml.api.vision.TableSchemaProducer;
 import com.google.solutions.ml.api.vision.processor.Constants.Field;
@@ -64,37 +66,37 @@ public class FaceAnnotationProcessor implements AnnotateImageResponseProcessor {
       return new TableSchema().setFields(
           ImmutableList.of(
               new TableFieldSchema()
-                  .setName(Field.GCS_URI_FIELD).setType("STRING").setMode("REQUIRED"),
+                  .setName(Field.GCS_URI_FIELD).setType(Type.STRING).setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.BOUNDING_POLY).setType("RECORD")
-                  .setMode("REQUIRED").setFields(Constants.POLYGON_FIELDS),
+                  .setName(Field.BOUNDING_POLY).setType(Type.RECORD)
+                  .setMode(Mode.REQUIRED).setFields(Constants.POLYGON_FIELDS),
               new TableFieldSchema()
-                  .setName(Field.FD_BOUNDING_POLY).setType("RECORD")
-                  .setMode("REQUIRED").setFields(Constants.POLYGON_FIELDS),
+                  .setName(Field.FD_BOUNDING_POLY).setType(Type.RECORD)
+                  .setMode(Mode.REQUIRED).setFields(Constants.POLYGON_FIELDS),
               new TableFieldSchema()
-                  .setName(Field.LANDMARKS).setType("RECORD").setMode("REPEATED").setFields(
+                  .setName(Field.LANDMARKS).setType(Type.RECORD).setMode(Mode.REPEATED).setFields(
                   Arrays.asList(
-                      new TableFieldSchema().setName(Field.FACE_LANDMARK_TYPE).setType("STRING")
-                          .setMode("REQUIRED"),
-                      new TableFieldSchema().setName(Field.FACE_LANDMARK_POSITION).setType("RECORD")
-                          .setMode("REQUIRED").setFields(Constants.POSITION_FIELDS)
+                      new TableFieldSchema().setName(Field.FACE_LANDMARK_TYPE).setType(Type.STRING)
+                          .setMode(Mode.REQUIRED),
+                      new TableFieldSchema().setName(Field.FACE_LANDMARK_POSITION).setType(Type.RECORD)
+                          .setMode(Mode.REQUIRED).setFields(Constants.POSITION_FIELDS)
                   )
               ),
               new TableFieldSchema()
-                  .setName(Field.DETECTION_CONFIDENCE).setType("FLOAT").setMode("REQUIRED"),
+                  .setName(Field.DETECTION_CONFIDENCE).setType(Type.FLOAT).setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.LANDMARKING_CONFIDENCE).setType("FLOAT").setMode("REQUIRED"),
+                  .setName(Field.LANDMARKING_CONFIDENCE).setType(Type.FLOAT).setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.JOY_LIKELIHOOD).setType("STRING").setMode("REQUIRED"),
+                  .setName(Field.JOY_LIKELIHOOD).setType(Type.STRING).setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.SORROW_LIKELIHOOD).setType("STRING").setMode("REQUIRED"),
+                  .setName(Field.SORROW_LIKELIHOOD).setType(Type.STRING).setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.ANGER_LIKELIHOOD).setType("STRING").setMode("REQUIRED"),
+                  .setName(Field.ANGER_LIKELIHOOD).setType(Type.STRING).setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.SURPISE_LIKELIHOOD).setType("STRING").setMode("REQUIRED"),
+                  .setName(Field.SURPISE_LIKELIHOOD).setType(Type.STRING).setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.TIMESTAMP_FIELD).setType("TIMESTAMP")
-                  .setMode("REQUIRED"))
+                  .setName(Field.TIMESTAMP_FIELD).setType(Type.TIMESTAMP)
+                  .setMode(Mode.REQUIRED))
       );
     }
   }

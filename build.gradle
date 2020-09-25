@@ -15,7 +15,7 @@
  */
 buildscript {
     ext {
-        dataflowBeamVersion = '2.23.0'
+        dataflowBeamVersion = '2.24.0'
         visionApiVersion = '1.99.3'
     }
     repositories {

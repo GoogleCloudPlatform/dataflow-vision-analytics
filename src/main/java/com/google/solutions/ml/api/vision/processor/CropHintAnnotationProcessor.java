@@ -26,6 +26,8 @@ import com.google.cloud.vision.v1.CropHint;
 import com.google.cloud.vision.v1.CropHintsAnnotation;
 import com.google.common.collect.ImmutableList;
 import com.google.solutions.ml.api.vision.BQDestination;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Mode;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Type;
 import com.google.solutions.ml.api.vision.TableDetails;
 import com.google.solutions.ml.api.vision.TableSchemaProducer;
 import com.google.solutions.ml.api.vision.processor.Constants.Field;
@@ -61,25 +63,25 @@ public class CropHintAnnotationProcessor implements AnnotateImageResponseProcess
           ImmutableList.of(
               new TableFieldSchema()
                   .setName(Field.GCS_URI_FIELD)
-                  .setType("STRING")
-                  .setMode("REQUIRED"),
+                  .setType(Type.STRING)
+                  .setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.CROP_HINTS).setType("RECORD")
-                  .setMode("REPEATED")
+                  .setName(Field.CROP_HINTS).setType(Type.RECORD)
+                  .setMode(Mode.REPEATED)
                   .setFields(ImmutableList.of(
                       new TableFieldSchema()
-                          .setName(Field.CONFIDENCE).setType("FLOAT")
-                          .setMode("REQUIRED"),
+                          .setName(Field.CONFIDENCE).setType(Type.FLOAT)
+                          .setMode(Mode.REQUIRED),
                       new TableFieldSchema()
-                          .setName(Field.IMPORTANCE_FRACTION).setType("FLOAT")
-                          .setMode("REQUIRED"),
+                          .setName(Field.IMPORTANCE_FRACTION).setType(Type.FLOAT)
+                          .setMode(Mode.REQUIRED),
                       new TableFieldSchema()
-                          .setName(Field.BOUNDING_POLY).setType("RECORD")
-                          .setMode("REQUIRED").setFields(Constants.POLYGON_FIELDS)
+                          .setName(Field.BOUNDING_POLY).setType(Type.RECORD)
+                          .setMode(Mode.REQUIRED).setFields(Constants.POLYGON_FIELDS)
                   )),
               new TableFieldSchema()
-                  .setName(Field.TIMESTAMP_FIELD).setType("TIMESTAMP")
-                  .setMode("REQUIRED"))
+                  .setName(Field.TIMESTAMP_FIELD).setType(Type.TIMESTAMP)
+                  .setMode(Mode.REQUIRED))
       );
     }
   }

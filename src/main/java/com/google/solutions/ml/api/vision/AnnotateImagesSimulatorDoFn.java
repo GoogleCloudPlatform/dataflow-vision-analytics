@@ -18,7 +18,6 @@ package com.google.solutions.ml.api.vision;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.AnnotateImageResponse.Builder;
 import com.google.cloud.vision.v1.Feature;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -31,17 +30,14 @@ import org.apache.beam.sdk.values.KV;
  */
 public class AnnotateImagesSimulatorDoFn extends
     DoFn<Iterable<String>, KV<String, AnnotateImageResponse>> {
+
   private static final long serialVersionUID = 1L;
 
-  /**
-   * Not used. But the simulation logic can be enhanced if needed to produce annotations
-   * based on the requested features.
-   */
-  private final List<Feature> featureList = new ArrayList<>();
-
   public AnnotateImagesSimulatorDoFn(List<Feature.Type> featureTypes) {
-    featureTypes.forEach(
-        type -> featureList.add(Feature.newBuilder().setType(type).build()));
+    /*
+     * Feature types are ignored at the moment. But the simulation logic can be enhanced if needed to produce annotations
+     * based on the requested features.
+     */
   }
 
   @ProcessElement

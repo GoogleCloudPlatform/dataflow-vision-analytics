@@ -17,6 +17,8 @@
 package com.google.solutions.ml.api.vision.processor;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Mode;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Type;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -66,18 +68,18 @@ interface Constants {
   }
 
   List<TableFieldSchema> VERTEX_FIELDS = Arrays.asList(
-      new TableFieldSchema().setName(Field.VERTEX_X).setType("FLOAT").setMode("REQUIRED"),
-      new TableFieldSchema().setName(Field.VERTEX_Y).setType("FLOAT").setMode("REQUIRED")
+      new TableFieldSchema().setName(Field.VERTEX_X).setType(Type.FLOAT).setMode(Mode.REQUIRED),
+      new TableFieldSchema().setName(Field.VERTEX_Y).setType(Type.FLOAT).setMode(Mode.REQUIRED)
   );
 
   List<TableFieldSchema> POSITION_FIELDS = Arrays.asList(
-      new TableFieldSchema().setName(Field.VERTEX_X).setType("FLOAT").setMode("REQUIRED"),
-      new TableFieldSchema().setName(Field.VERTEX_Y).setType("FLOAT").setMode("REQUIRED"),
-      new TableFieldSchema().setName(Field.VERTEX_Z).setType("FLOAT").setMode("NULLABLE")
+      new TableFieldSchema().setName(Field.VERTEX_X).setType(Type.FLOAT).setMode(Mode.REQUIRED),
+      new TableFieldSchema().setName(Field.VERTEX_Y).setType(Type.FLOAT).setMode(Mode.REQUIRED),
+      new TableFieldSchema().setName(Field.VERTEX_Z).setType(Type.FLOAT).setMode(Mode.NULLABLE)
   );
 
   List<TableFieldSchema> POLYGON_FIELDS = Collections.singletonList(
-      new TableFieldSchema().setName(Field.VERTICES).setType("RECORD").setMode("REPEATED")
+      new TableFieldSchema().setName(Field.VERTICES).setType(Type.RECORD).setMode(Mode.REPEATED)
           .setFields(VERTEX_FIELDS)
   );
 }

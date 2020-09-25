@@ -25,6 +25,8 @@ import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.common.collect.ImmutableList;
 import com.google.solutions.ml.api.vision.BQDestination;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Mode;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Type;
 import com.google.solutions.ml.api.vision.TableDetails;
 import com.google.solutions.ml.api.vision.TableSchemaProducer;
 import com.google.solutions.ml.api.vision.processor.Constants.Field;
@@ -58,23 +60,23 @@ public class LogoAnnotationProcessor implements AnnotateImageResponseProcessor {
           ImmutableList.of(
               new TableFieldSchema()
                   .setName(Field.GCS_URI_FIELD)
-                  .setType("STRING")
-                  .setMode("REQUIRED"),
+                  .setType(Type.STRING)
+                  .setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.MID_FIELD).setType("STRING")
-                  .setMode("NULLABLE"),
+                  .setName(Field.MID_FIELD).setType(Type.STRING)
+                  .setMode(Mode.NULLABLE),
               new TableFieldSchema()
-                  .setName(Field.DESCRIPTION_FIELD).setType("STRING")
-                  .setMode("REQUIRED"),
+                  .setName(Field.DESCRIPTION_FIELD).setType(Type.STRING)
+                  .setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.SCORE_FIELD).setType("FLOAT")
-                  .setMode("REQUIRED"),
+                  .setName(Field.SCORE_FIELD).setType(Type.FLOAT)
+                  .setMode(Mode.REQUIRED),
               new TableFieldSchema()
-                  .setName(Field.BOUNDING_POLY).setType("RECORD")
-                  .setMode("NULLABLE").setFields(Constants.POLYGON_FIELDS),
+                  .setName(Field.BOUNDING_POLY).setType(Type.RECORD)
+                  .setMode(Mode.NULLABLE).setFields(Constants.POLYGON_FIELDS),
               new TableFieldSchema()
-                  .setName(Field.TIMESTAMP_FIELD).setType("TIMESTAMP")
-                  .setMode("REQUIRED"))
+                  .setName(Field.TIMESTAMP_FIELD).setType(Type.TIMESTAMP)
+                  .setMode(Mode.REQUIRED))
       );
     }
   }

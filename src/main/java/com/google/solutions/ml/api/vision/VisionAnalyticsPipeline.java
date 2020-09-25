@@ -24,6 +24,8 @@ import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Mode;
+import com.google.solutions.ml.api.vision.BigQueryConstants.Type;
 import com.google.solutions.ml.api.vision.processor.AnnotateImageResponseProcessor;
 import com.google.solutions.ml.api.vision.processor.CropHintAnnotationProcessor;
 import com.google.solutions.ml.api.vision.processor.ErrorProcessor;
@@ -201,10 +203,10 @@ public class VisionAnalyticsPipeline {
             .withClustering()
             .ignoreInsertIds()
             .withSchema(new TableSchema().setFields(ImmutableList.of(
-                new TableFieldSchema().setName("window").setType("STRING"),
-                new TableFieldSchema().setName("timestamp").setType("TIMESTAMP"),
-                new TableFieldSchema().setName("size").setType("NUMERIC"),
-                new TableFieldSchema().setName("items").setType("STRING").setMode("REPEATED")
+                new TableFieldSchema().setName("window").setType(Type.STRING),
+                new TableFieldSchema().setName("timestamp").setType(Type.TIMESTAMP),
+                new TableFieldSchema().setName("size").setType(Type.NUMERIC),
+                new TableFieldSchema().setName("items").setType(Type.STRING).setMode(Mode.REPEATED)
             )))
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
   }
