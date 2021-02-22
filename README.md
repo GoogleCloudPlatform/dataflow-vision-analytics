@@ -122,13 +122,12 @@ You can trigger the pipeline either by the flex template or by simply using the 
 
 ```
 gcloud beta dataflow flex-template run "vision-analytics-1" \
---project=${PROJECT}\
+--project=${PROJECT} \
 --region=${REGION} \
 --template-file-gcs-location=gs://${DATAFLOW_TEMPLATE_BUCKET}/dynamic_template_vision_analytics.json \
---parameters=^~^autoscalingAlgorithm="THROUGHPUT_BASED_"~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4
-~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}~visionApiProjectId=${PROJECT}  ~features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION
-  ~datasetName=${BIGQUERY_DATASET}
-  ~streaming=true
+--parameters=^~^autoscalingAlgorithm="THROUGHPUT_BASED"~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4\
+~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}~visionApiProjectId=${PROJECT}\  ~features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION\
+~datasetName=${BIGQUERY_DATASET}~streaming=true
 ```
 
 ####  (Optional) Trigger By Gradle Run 
