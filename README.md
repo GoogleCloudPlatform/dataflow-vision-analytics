@@ -126,16 +126,19 @@ gcloud beta dataflow flex-template run "vision-analytics-1" \
 --region=${REGION} \
 --template-file-gcs-location=gs://${DATAFLOW_TEMPLATE_BUCKET}/dynamic_template_vision_analytics.json \
 --parameters=^~^autoscalingAlgorithm="THROUGHPUT_BASED"~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4\
-~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}~visionApiProjectId=${PROJECT}\  ~features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION\
+~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}~visionApiProjectId=${PROJECT}\
+~features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION\
 ~datasetName=${BIGQUERY_DATASET}~streaming=true
 ```
 
 ####  (Optional) Trigger By Gradle Run 
 
 ```
-gradle run -DmainClass=com.google.solutions.ml.api.vision.VisionAnalyticsPipeline -Pargs="--streaming --project=${PROJECT}\
- --runner=DataflowRunner --subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION} \
---visionApiProjectId=${PROJECT}/ --enableStreamingEngine \ --features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION "
+gradle run -DmainClass=com.google.solutions.ml.api.vision.VisionAnalyticsPipeline -Pargs="--streaming --project=${PROJECT} \
+--runner=DataflowRunner --subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION} \
+--visionApiProjectId=${PROJECT} \
+--enableStreamingEngine \
+--features=IMAGE_PROPERTIES,LABEL_DETECTION,LANDMARK_DETECTION,LOGO_DETECTION,CROP_HINTS,FACE_DETECTION "
 ```
 
 #### Validate pipeline is successfully started: 
@@ -253,11 +256,12 @@ In this test, we will detect label and landmark from  [public flickr 30k image d
 #### Trigger the pipeline with additional parameters for optimal performance
 
 ```
-gcloud beta dataflow flex-template run "vision-analytics-2" --project=${PROJECT_ID} --region=${REGION} \ --template-file-gcs-location=gs://${DATAFLOW_TEMPLATE_BUCKET}/dynamic_template_vision_analytics.json \ --parameters=^~^autoscalingAlgorithm=THROUGHPUT_BASED~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4 \
-~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION} \
-~visionApiProjectId=${PROJECT}~features=LABEL_DETECTION,LANDMARK_DETECTION \
+gcloud beta dataflow flex-template run "vision-analytics-2" --project=${PROJECT_ID} --region=${REGION} \
+--template-file-gcs-location=gs://${DATAFLOW_TEMPLATE_BUCKET}/dynamic_template_vision_analytics.json \
+--parameters=^~^autoscalingAlgorithm=THROUGHPUT_BASED~numWorkers=5~maxNumWorkers=5~workerMachineType=n1-highmem-4\
+~subscriberId=projects/${PROJECT}/subscriptions/${GCS_NOTIFICATION_SUBSCRIPTION}\
+~visionApiProjectId=${PROJECT}~features=LABEL_DETECTION,LANDMARK_DETECTION\
 ~datasetName=${BIGQUERY_DATASET}~streaming=true~batchSize=16~windowInterval=5~keyRange=1024
-
 ```
  
 ### Copy dataset to input bucket
