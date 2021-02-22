@@ -1,5 +1,7 @@
 # Vision Analytics Solution Using Dataflow & Vision AI 
 
+**IMPORTANT**: The content of this README file is now updated and published here: [Building a streaming video analytics pipeline](https://cloud.google.com/solutions/building-a-streaming-video-analytics-pipeline).
+
 This repo contains a reference implementation to derive insights from large scale image files stored in a GCS bucket.  The goal is to provide an easy to use end to end automated solution by using Dataflow and Vision API.  Response from  Vision API  is stored in BigQuery tables based on feature type and can be used as additional features to create machine learning model by using BigQuery ML or Auto ML. 
 
 ## Table of Contents  
