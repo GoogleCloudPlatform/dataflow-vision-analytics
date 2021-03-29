@@ -63,7 +63,7 @@ public class GCSFileInfo implements Serializable {
     GCSFileInfo that = (GCSFileInfo) o;
     return Objects.equals(uri, that.uri)
         && Objects.equals(contentType, that.contentType)
-        && metadata.equals(that.metadata);
+        && Objects.equals(metadata, that.metadata);
   }
 
   @Override

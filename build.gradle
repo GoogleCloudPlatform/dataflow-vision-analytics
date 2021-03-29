@@ -153,3 +153,19 @@ spotless {
 }
 run.mustRunAfter 'resources'
 
+// Tests
+
+test {
+    useJUnit()
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+        exceptionFormat "full"
+    }
+}
+
+sourceSets {
+    test {
+        java.srcDir file('src/test')
+    }
+}
