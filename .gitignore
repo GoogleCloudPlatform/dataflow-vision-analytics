@@ -72,3 +72,7 @@ hs_err_pid*
 
 .apt_generated
 **/.sts4-cache/*
+
+# Media files
+*.mp4
+*.jpg
