@@ -30,6 +30,7 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import com.google.api.client.json.gson.GsonFactory;
 
 public class GCSUtils {
 
@@ -86,9 +87,9 @@ public class GCSUtils {
         throw new RuntimeException(e);
       }
       HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
-      JacksonFactory jacksonFactory = JacksonFactory.getDefaultInstance();
+      GsonFactory gsonFactory = GsonFactory.getDefaultInstance();
       storageService =
-          new Storage.Builder(httpTransport, jacksonFactory, requestInitializer)
+          new Storage.Builder(httpTransport, gsonFactory, requestInitializer)
               .setApplicationName(APPLICATION_NAME)
               .build();
     }
