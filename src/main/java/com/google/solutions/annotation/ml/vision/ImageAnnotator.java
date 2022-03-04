@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.cloud.vision.v1.ImageSource;
 import com.google.protobuf.GeneratedMessageV3;
 import com.google.solutions.annotation.AnnotationPipeline;
-import com.google.solutions.annotation.ml.BackOffUtils;
 import com.google.solutions.annotation.gcs.GCSFileInfo;
+import com.google.solutions.annotation.ml.BackOffUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;

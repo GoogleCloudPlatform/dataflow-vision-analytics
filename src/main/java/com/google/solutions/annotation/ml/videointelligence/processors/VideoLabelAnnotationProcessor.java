@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import com.google.cloud.videointelligence.v1p3beta1.StreamingAnnotateVideoRespon
 import com.google.cloud.videointelligence.v1p3beta1.StreamingVideoAnnotationResults;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.GeneratedMessageV3;
-import com.google.solutions.annotation.ml.Constants.Field;
 import com.google.solutions.annotation.bigquery.BigQueryDestination;
 import com.google.solutions.annotation.bigquery.TableDetails;
 import com.google.solutions.annotation.bigquery.TableSchemaProducer;
 import com.google.solutions.annotation.gcs.GCSFileInfo;
+import com.google.solutions.annotation.ml.Constants.Field;
 import com.google.solutions.annotation.ml.MLApiResponseProcessor;
 import com.google.solutions.annotation.ml.ProcessorUtils;
 import java.util.*;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,9 @@ package com.google.solutions.annotation.ml;
 
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.gax.rpc.ResourceExhaustedException;
+import com.google.solutions.annotation.AnnotationPipeline;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-
-import com.google.solutions.annotation.AnnotationPipeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

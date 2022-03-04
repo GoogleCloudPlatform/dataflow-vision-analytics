@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ public abstract class PubSubNotificationToGCSInfoDoFn extends DoFn<PubsubMessage
     PubsubMessage message = c.element();
     String eventType = message.getAttribute("eventType");
     if (!Objects.equals(eventType, "OBJECT_FINALIZE")) {
+      // TODO: Output rejected messages to a queue (e.g. in a BigQuery table)
       LOG.warn("PubSub event type '{}' will not be processed", eventType);
       return;
     }
@@ -65,11 +66,8 @@ public abstract class PubSubNotificationToGCSInfoDoFn extends DoFn<PubsubMessage
     if (contentType != null
         && supportedContentTypes().stream().noneMatch(contentType::equalsIgnoreCase)) {
       AnnotationPipeline.rejectedFiles.inc();
-      LOG.warn(
-          "File {} is rejected - content type '{}' is not supported. "
-              + "Refer to https://cloud.google.com/vision/docs/supported-files for details.",
-          fileName,
-          contentType);
+      // TODO: Output rejected files to a queue (e.g. in a BigQuery table)
+      LOG.warn("File {} is rejected - content type '{}' is not supported.", fileName, contentType);
       return;
     }
 

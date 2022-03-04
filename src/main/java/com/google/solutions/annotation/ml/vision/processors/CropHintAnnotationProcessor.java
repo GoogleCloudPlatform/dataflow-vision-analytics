@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,13 +25,13 @@ import com.google.cloud.vision.v1.CropHint;
 import com.google.cloud.vision.v1.CropHintsAnnotation;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.GeneratedMessageV3;
-import com.google.solutions.annotation.ml.Constants;
-import com.google.solutions.annotation.ml.Constants.Field;
 import com.google.solutions.annotation.bigquery.BigQueryConstants;
 import com.google.solutions.annotation.bigquery.BigQueryDestination;
 import com.google.solutions.annotation.bigquery.TableDetails;
 import com.google.solutions.annotation.bigquery.TableSchemaProducer;
 import com.google.solutions.annotation.gcs.GCSFileInfo;
+import com.google.solutions.annotation.ml.Constants;
+import com.google.solutions.annotation.ml.Constants.Field;
 import com.google.solutions.annotation.ml.MLApiResponseProcessor;
 import com.google.solutions.annotation.ml.ProcessorUtils;
 import java.util.ArrayList;
