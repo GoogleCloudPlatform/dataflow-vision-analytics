@@ -1,11 +1,11 @@
 /*
- * Copyright 2020 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * specific annotation and using image response builder output the table and table row for BigQuery
  */
 @AutoValue
-abstract public class ProcessImageResponseDoFn
+public abstract class ProcessImageResponseDoFn
     extends DoFn<KV<String, AnnotateImageResponse>, KV<BQDestination, TableRow>> {
 
   private static final long serialVersionUID = 1L;
@@ -46,13 +46,13 @@ abstract public class ProcessImageResponseDoFn
       Collection<AnnotateImageResponseProcessor> processors) {
     return builder()
         .processors(processors)
-        .processedFileCounter(Metrics
-            .counter(ProcessImageResponseDoFn.class, "processedFiles"))
+        .processedFileCounter(Metrics.counter(ProcessImageResponseDoFn.class, "processedFiles"))
         .build();
   }
 
   @ProcessElement
-  public void processElement(@Element KV<String, AnnotateImageResponse> element,
+  public void processElement(
+      @Element KV<String, AnnotateImageResponse> element,
       OutputReceiver<KV<BQDestination, TableRow>> out) {
     String imageFileURI = element.getKey();
     AnnotateImageResponse annotationResponse = element.getValue();
@@ -60,19 +60,20 @@ abstract public class ProcessImageResponseDoFn
     LOG.debug("Processing annotations for file: {}", imageFileURI);
     processedFileCounter().inc();
 
-    processors().forEach(processor -> {
-      Iterable<KV<BQDestination, TableRow>> processingResult = processor
-          .process(imageFileURI, annotationResponse);
-      if (processingResult != null) {
-        processingResult.forEach(out::output);
-      }
-    });
+    processors()
+        .forEach(
+            processor -> {
+              Iterable<KV<BQDestination, TableRow>> processingResult =
+                  processor.process(imageFileURI, annotationResponse);
+              if (processingResult != null) {
+                processingResult.forEach(out::output);
+              }
+            });
   }
 
   public static Builder builder() {
     return new AutoValue_ProcessImageResponseDoFn.Builder();
   }
-
 
   @AutoValue.Builder
   public abstract static class Builder {

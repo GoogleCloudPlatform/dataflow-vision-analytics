@@ -1,11 +1,11 @@
 /*
- * Copyright 2020 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.solutions.ml.api.vision.processor;
 
 import com.google.api.services.bigquery.model.Clustering;
@@ -44,7 +43,7 @@ public class ErrorProcessor implements AnnotateImageResponseProcessor {
 
   private static final long serialVersionUID = 1L;
 
-  public final static Counter counter =
+  public static final Counter counter =
       Metrics.counter(AnnotateImageResponseProcessor.class, "numberOfErrors");
   public static final Logger LOG = LoggerFactory.getLogger(ErrorProcessor.class);
 
@@ -54,37 +53,40 @@ public class ErrorProcessor implements AnnotateImageResponseProcessor {
 
     @Override
     public TableSchema getTableSchema() {
-      return new TableSchema().setFields(
-          ImmutableList.of(
-              new TableFieldSchema()
-                  .setName(Field.GCS_URI_FIELD)
-                  .setType(Type.STRING)
-                  .setMode(Mode.REQUIRED),
-              new TableFieldSchema()
-                  .setName(Field.DESCRIPTION_FIELD).setType(Type.STRING)
-                  .setMode(Mode.REQUIRED),
-              new TableFieldSchema()
-                  .setName(Field.STACK_TRACE).setType(Type.STRING)
-                  .setMode(Mode.NULLABLE),
-              new TableFieldSchema()
-                  .setName(Field.TIMESTAMP_FIELD).setType(Type.TIMESTAMP)
-                  .setMode(Mode.REQUIRED))
-      );
+      return new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema()
+                      .setName(Field.GCS_URI_FIELD)
+                      .setType(Type.STRING)
+                      .setMode(Mode.REQUIRED),
+                  new TableFieldSchema()
+                      .setName(Field.DESCRIPTION_FIELD)
+                      .setType(Type.STRING)
+                      .setMode(Mode.REQUIRED),
+                  new TableFieldSchema()
+                      .setName(Field.STACK_TRACE)
+                      .setType(Type.STRING)
+                      .setMode(Mode.NULLABLE),
+                  new TableFieldSchema()
+                      .setName(Field.TIMESTAMP_FIELD)
+                      .setType(Type.TIMESTAMP)
+                      .setMode(Mode.REQUIRED)));
     }
   }
 
   @Override
   public TableDetails destinationTableDetails() {
-    return TableDetails.create("Google Vision API Processing Errors",
+    return TableDetails.create(
+        "Google Vision API Processing Errors",
         new Clustering().setFields(Collections.singletonList(Field.GCS_URI_FIELD)),
-        new TimePartitioning().setField(Field.TIMESTAMP_FIELD), new SchemaProducer());
+        new TimePartitioning().setField(Field.TIMESTAMP_FIELD),
+        new SchemaProducer());
   }
 
   private final BQDestination destination;
 
-  /**
-   * Creates a processor and specifies the table id to persist to.
-   */
+  /** Creates a processor and specifies the table id to persist to. */
   public ErrorProcessor(String tableId) {
     destination = new BQDestination(tableId);
   }

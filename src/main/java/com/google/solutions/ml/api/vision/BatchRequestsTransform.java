@@ -1,11 +1,11 @@
 /*
- * Copyright 2020 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.solutions.ml.api.vision;
 
 import com.google.auto.value.AutoValue;
@@ -29,12 +28,12 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Groups the requests into certain size batches. See {@link GroupIntoBatches} for effects
- * of windowing on the output of this transform.
+ * Groups the requests into certain size batches. See {@link GroupIntoBatches} for effects of
+ * windowing on the output of this transform.
  */
 @AutoValue
-public abstract class BatchRequestsTransform extends
-    PTransform<PCollection<String>, PCollection<Iterable<String>>> {
+public abstract class BatchRequestsTransform
+    extends PTransform<PCollection<String>, PCollection<Iterable<String>>> {
 
   private static final long serialVersionUID = 1L;
 
@@ -42,43 +41,45 @@ public abstract class BatchRequestsTransform extends
 
   public abstract int getKeyRange();
 
-
   /**
    * @param batchSize should be between 1 and 16
    * @param keyRange determines the level of parallelism. Should be a positive non-zero integer.
    * @return a new transform
    */
   public static BatchRequestsTransform create(long batchSize, int keyRange) {
-    return builder()
-        .setBatchSize(batchSize)
-        .setKeyRange(keyRange)
-        .build();
+    return builder().setBatchSize(batchSize).setKeyRange(keyRange).build();
   }
 
   @Override
   public PCollection<Iterable<String>> expand(PCollection<String> input) {
     if (getBatchSize() > 1) {
       return input
-          .apply("Assign Keys", WithKeys.of(new SerializableFunction<String, Integer>() {
-            private static final long serialVersionUID = 1L;
-            private Random random = new Random();
+          .apply(
+              "Assign Keys",
+              WithKeys.of(
+                  new SerializableFunction<String, Integer>() {
+                    private static final long serialVersionUID = 1L;
+                    private Random random = new Random();
 
-            @Override
-            public Integer apply(String input) {
-              return random.nextInt(getKeyRange());
-            }
-          }))
+                    @Override
+                    public Integer apply(String input) {
+                      return random.nextInt(getKeyRange());
+                    }
+                  }))
           .apply("Group Into Batches", GroupIntoBatches.ofSize(getBatchSize()))
           .apply("Convert to Batches", Values.create());
     } else {
-      return input.apply("Convert to Iterable", ParDo.of(new DoFn<String, Iterable<String>>() {
-        private final static long serialVersionUID = 1L;
+      return input.apply(
+          "Convert to Iterable",
+          ParDo.of(
+              new DoFn<String, Iterable<String>>() {
+                private static final long serialVersionUID = 1L;
 
-        @ProcessElement
-        public void process(@Element String element, OutputReceiver<Iterable<String>> out) {
-          out.output(Collections.singleton(element));
-        }
-      }));
+                @ProcessElement
+                public void process(@Element String element, OutputReceiver<Iterable<String>> out) {
+                  out.output(Collections.singleton(element));
+                }
+              }));
     }
   }
 

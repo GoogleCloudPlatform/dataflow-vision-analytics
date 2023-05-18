@@ -1,11 +1,11 @@
 /*
- * Copyright 2020 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.solutions.ml.api.vision;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,21 +27,17 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Converts PubSub notifications into GCS File URIs.
- */
+/** Converts PubSub notifications into GCS File URIs. */
 @AutoValue
 public abstract class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage, String> {
 
   private static final long serialVersionUID = 1L;
   private static final Logger LOG = LoggerFactory.getLogger(PubSubNotificationToGCSUriDoFn.class);
 
-  abstract public Set<String> supportedContentTypes();
+  public abstract Set<String> supportedContentTypes();
 
   public static PubSubNotificationToGCSUriDoFn create(Set<String> supportedContentTypes) {
-    return builder()
-        .supportedContentTypes(supportedContentTypes)
-        .build();
+    return builder().supportedContentTypes(supportedContentTypes).build();
   }
 
   @ProcessElement
@@ -64,9 +59,11 @@ public abstract class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage,
 
     if (contentType != null && !supportedContentTypes().contains(contentType)) {
       VisionAnalyticsPipeline.rejectedFiles.inc();
-      LOG.warn("File {} is rejected - content type '{}' is not supported. "
+      LOG.warn(
+          "File {} is rejected - content type '{}' is not supported. "
               + "Refer to https://cloud.google.com/vision/docs/supported-files for details.",
-          fileName, contentType);
+          fileName,
+          contentType);
       return;
     }
 
