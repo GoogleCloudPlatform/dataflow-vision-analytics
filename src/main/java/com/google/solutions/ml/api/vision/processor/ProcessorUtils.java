@@ -1,11 +1,11 @@
 /*
- * Copyright 2020 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.solutions.ml.api.vision.processor;
 
 import com.google.api.services.bigquery.model.TableRow;
@@ -27,14 +26,10 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-/**
- * Various utility functions used by processors
- */
+/** Various utility functions used by processors */
 public class ProcessorUtils {
 
-  /**
-   * Extracts the bounding polygon if one exists and adds it to the row.
-   */
+  /** Extracts the bounding polygon if one exists and adds it to the row. */
   static void extractBoundingPoly(EntityAnnotation annotation, TableRow row) {
     if (annotation.hasBoundingPoly()) {
       TableRow boundingPoly = getBoundingPolyAsRow(annotation.getBoundingPoly());
@@ -49,7 +44,8 @@ public class ProcessorUtils {
    */
   static TableRow getBoundingPolyAsRow(BoundingPoly boundingPoly) {
     List<TableRow> vertices = new ArrayList<>();
-    boundingPoly.getVerticesList()
+    boundingPoly
+        .getVerticesList()
         .forEach(
             vertex -> {
               TableRow vertexRow = new TableRow();
@@ -78,9 +74,7 @@ public class ProcessorUtils {
   private static final DateTimeFormatter TIMESTAMP_FORMATTER =
       DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
-  /**
-   * Formats the current timestamp in BigQuery compliant format
-   */
+  /** Formats the current timestamp in BigQuery compliant format */
   public static String getTimeStamp() {
     return TIMESTAMP_FORMATTER.print(Instant.now().toDateTime(DateTimeZone.UTC));
   }

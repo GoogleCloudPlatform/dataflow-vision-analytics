@@ -1,11 +1,11 @@
 /*
- * Copyright 2020 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.solutions.ml.api.vision.processor;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -23,9 +22,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Helper interface for common image annotation response processor constants
- */
+/** Helper interface for common image annotation response processor constants */
 interface Constants {
 
   interface Field {
@@ -67,19 +64,28 @@ interface Constants {
     String CROP_HINTS = "crop_hints";
   }
 
-  List<TableFieldSchema> VERTEX_FIELDS = Arrays.asList(
-      new TableFieldSchema().setName(Field.VERTEX_X).setType(Type.FLOAT).setMode(Mode.REQUIRED),
-      new TableFieldSchema().setName(Field.VERTEX_Y).setType(Type.FLOAT).setMode(Mode.REQUIRED)
-  );
+  List<TableFieldSchema> VERTEX_FIELDS =
+      Arrays.asList(
+          new TableFieldSchema().setName(Field.VERTEX_X).setType(Type.FLOAT).setMode(Mode.REQUIRED),
+          new TableFieldSchema()
+              .setName(Field.VERTEX_Y)
+              .setType(Type.FLOAT)
+              .setMode(Mode.REQUIRED));
 
-  List<TableFieldSchema> POSITION_FIELDS = Arrays.asList(
-      new TableFieldSchema().setName(Field.VERTEX_X).setType(Type.FLOAT).setMode(Mode.REQUIRED),
-      new TableFieldSchema().setName(Field.VERTEX_Y).setType(Type.FLOAT).setMode(Mode.REQUIRED),
-      new TableFieldSchema().setName(Field.VERTEX_Z).setType(Type.FLOAT).setMode(Mode.NULLABLE)
-  );
+  List<TableFieldSchema> POSITION_FIELDS =
+      Arrays.asList(
+          new TableFieldSchema().setName(Field.VERTEX_X).setType(Type.FLOAT).setMode(Mode.REQUIRED),
+          new TableFieldSchema().setName(Field.VERTEX_Y).setType(Type.FLOAT).setMode(Mode.REQUIRED),
+          new TableFieldSchema()
+              .setName(Field.VERTEX_Z)
+              .setType(Type.FLOAT)
+              .setMode(Mode.NULLABLE));
 
-  List<TableFieldSchema> POLYGON_FIELDS = Collections.singletonList(
-      new TableFieldSchema().setName(Field.VERTICES).setType(Type.RECORD).setMode(Mode.REPEATED)
-          .setFields(VERTEX_FIELDS)
-  );
+  List<TableFieldSchema> POLYGON_FIELDS =
+      Collections.singletonList(
+          new TableFieldSchema()
+              .setName(Field.VERTICES)
+              .setType(Type.RECORD)
+              .setMode(Mode.REPEATED)
+              .setFields(VERTEX_FIELDS));
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2020 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,10 +35,10 @@ import org.slf4j.LoggerFactory;
 /**
  * Calls Google Cloud Vision API to annotate a batch of GCS files.
  *
- * The GCS file URIs are provided in the incoming PCollection and should not exceed the limit
+ * <p>The GCS file URIs are provided in the incoming PCollection and should not exceed the limit
  * imposed by the API (maximum of 16 images per request).
  *
- * The resulting PCollection contains key/value pair with the GCS file URI as the key and the API
+ * <p>The resulting PCollection contains key/value pair with the GCS file URI as the key and the API
  * response as the value.
  */
 public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, AnnotateImageResponse>> {
@@ -51,8 +51,7 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
   private ImageAnnotatorClient visionApiClient;
 
   public AnnotateImagesDoFn(List<Feature.Type> featureTypes) {
-    featureTypes.forEach(
-        type -> featureList.add(Feature.newBuilder().setType(type).build()));
+    featureTypes.forEach(type -> featureList.add(Feature.newBuilder().setType(type).build()));
   }
 
   @Setup
@@ -84,7 +83,8 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
   }
 
   @ProcessElement
-  public void processElement(@Element Iterable<String> imageFileURIs,
+  public void processElement(
+      @Element Iterable<String> imageFileURIs,
       OutputReceiver<KV<String, AnnotateImageResponse>> out) {
     List<AnnotateImageRequest> requests = new ArrayList<>();
 
@@ -101,13 +101,14 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
 
     List<AnnotateImageResponse> responses;
 
-    ExponentialBackOff backoff = new ExponentialBackOff.Builder()
-        .setInitialIntervalMillis(10 * 1000 /* 10 seconds */)
-        .setMaxElapsedTimeMillis(10 * 60 * 1000 /* 10 minutes */)
-        .setMaxIntervalMillis(90 * 1000 /* 90 seconds */)
-        .setMultiplier(1.5)
-        .setRandomizationFactor(0.5)
-        .build();
+    ExponentialBackOff backoff =
+        new ExponentialBackOff.Builder()
+            .setInitialIntervalMillis(10 * 1000 /* 10 seconds */)
+            .setMaxElapsedTimeMillis(10 * 60 * 1000 /* 10 minutes */)
+            .setMaxIntervalMillis(90 * 1000 /* 90 seconds */)
+            .setMultiplier(1.5)
+            .setRandomizationFactor(0.5)
+            .build();
     while (true) {
       try {
         VisionAnalyticsPipeline.numberOfRequests.inc();
@@ -124,7 +125,6 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
       out.output(KV.of(imageUri, response));
     }
   }
-
 
   /**
    * Attempts to backoff unless reaches the max elapsed time.
@@ -144,8 +144,7 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
       LOG.warn("Reached the limit of backoff retries. Throwing the exception to the pipeline");
       throw e;
     }
-    LOG.info("Received {}. Will retry in {} seconds.", e.getClass().getName(),
-        waitInMillis / 1000);
+    LOG.info("Received {}. Will retry in {} seconds.", e.getClass().getName(), waitInMillis / 1000);
     try {
       TimeUnit.MILLISECONDS.sleep(waitInMillis);
     } catch (InterruptedException interruptedException) {
