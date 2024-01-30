@@ -81,8 +81,10 @@ public class VisionAnalyticsPipeline {
       Metrics.counter(VisionAnalyticsPipeline.class, "numberOfQuotaExceededRequests");
 
   public static final Distribution batchSizeDistribution =
-      Metrics.distribution(VisionAnalyticsPipeline.class, "batchSizeDistribution");
+      Metrics.distribution(VisionAnalyticsPipeline.class, "batchSize");
 
+  public static final Distribution successfulAPILatencyDistribution =
+      Metrics.distribution(VisionAnalyticsPipeline.class, "visionAPILatency");
   private static final Set<String> SUPPORTED_CONTENT_TYPES =
       ImmutableSet.of("image/jpeg", "image/png", "image/tiff", "image/tif", "image/gif");
 
@@ -264,14 +266,7 @@ public class VisionAnalyticsPipeline {
         pubSubNotifications
             .apply(
                 "PubSub to GCS URIs",
-                ParDo.of(PubSubNotificationToGCSUriDoFn.create(SUPPORTED_CONTENT_TYPES)))
-            .apply(
-                "Fixed Window",
-                Window.<String>into(
-                        FixedWindows.of(Duration.standardSeconds(options.getWindowInterval())))
-                    .triggering(AfterWatermark.pastEndOfWindow())
-                    .discardingFiredPanes()
-                    .withAllowedLateness(Duration.standardMinutes(15)));
+                ParDo.of(PubSubNotificationToGCSUriDoFn.create(SUPPORTED_CONTENT_TYPES)));
     return imageFileUris;
   }
 

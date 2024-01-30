@@ -45,7 +45,7 @@ public abstract class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage,
     PubsubMessage message = c.element();
     String eventType = message.getAttribute("eventType");
     if (!Objects.equals(eventType, "OBJECT_FINALIZE")) {
-      LOG.warn("PubSub event type '{}' will not be processed", eventType);
+      LOG.debug("PubSub event type '{}' will not be processed", eventType);
       return;
     }
     VisionAnalyticsPipeline.totalFiles.inc();

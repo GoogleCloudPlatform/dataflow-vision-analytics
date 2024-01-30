@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +39,8 @@ import org.slf4j.LoggerFactory;
  * <p>The GCS file URIs are provided in the incoming PCollection and should not exceed the limit
  * imposed by the API (maximum of 16 images per request).
  *
- * <p>The resulting PCollection contains key/value pair with the GCS file URI as the key and the API
- * response as the value.
+ * <p>The resulting PCollection contains key/value pair with the GCS file URI as the key and the
+ * API response as the value.
  */
 public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, AnnotateImageResponse>> {
 
@@ -111,8 +112,12 @@ public class AnnotateImagesDoFn extends DoFn<Iterable<String>, KV<String, Annota
             .build();
     while (true) {
       try {
-        VisionAnalyticsPipeline.numberOfRequests.inc();
+        Instant start = Instant.now();
         responses = visionApiClient.batchAnnotateImages(requests).getResponsesList();
+
+        VisionAnalyticsPipeline.numberOfRequests.inc();
+        VisionAnalyticsPipeline.successfulAPILatencyDistribution.update(
+            Instant.now().getMillis() - start.getMillis());
         break;
       } catch (ResourceExhaustedException e) {
         handleQuotaReachedException(backoff, e);

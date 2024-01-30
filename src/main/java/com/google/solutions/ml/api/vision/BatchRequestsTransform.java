@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 
 /**
  * Groups the requests into certain size batches. See {@link GroupIntoBatches} for effects of
@@ -66,7 +67,8 @@ public abstract class BatchRequestsTransform
                       return random.nextInt(getKeyRange());
                     }
                   }))
-          .apply("Group Into Batches", GroupIntoBatches.ofSize(getBatchSize()))
+          .apply("Group Into Batches", GroupIntoBatches.<Integer, String>ofSize(getBatchSize())
+              .withMaxBufferingDuration(Duration.standardSeconds(30)))
           .apply("Convert to Batches", Values.create());
     } else {
       return input.apply(
