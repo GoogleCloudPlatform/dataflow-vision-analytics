@@ -1,45 +1,38 @@
 # Vision Analytics Solution Using Dataflow & Vision AI
 
-<!-- TODO: remove comments once the guide is re-published
-**IMPORTANT**: The content of this README file is now updated and published here: [Building a streaming video analytics pipeline](https://cloud.google.com/solutions/building-a-streaming-video-analytics-pipeline).
--->
+This repo contains a reference implementation to derive insights from image files stored
+in a Google Storage bucket. The goal is to provide an easy-to-use automated solution by using Dataflow and Vision
+API.
 
-This repo contains a reference implementation to derive insights from large scale image files stored
-in a GCS bucket.  
-The goal is to provide an easy-to-use end to end automated solution by using Dataflow and Vision
-API.  
-Response from Vision API is stored in BigQuery tables based on feature type and can be used as
-additional features
-to create machine learning model by using BigQuery ML or Auto ML.
+Image annotations produced by Vision API are stored in BigQuery tables based on annotation type and can be used as
+additional features to create machine learning models by using BigQuery ML or Auto ML.
 
 # Reference Architecture
 
-![ref_arch](diagram/vision_analytics_dataflow_visionai.png)
+![ref_arch](diagram/vision-analytics-diagram.png)
 
-# Solution Details
-
-Visual inspection solution is designed to address major pain points for customers looking to improve
-quality control process,
-monitor workers safety, or do other kinds of advanced image analysis while reducing cost.
-This is a generic solution to automate inspection process by using Vision AI and Dataflow. Solution
+The visual analytics solution is designed to address major pain points for customers looking to improve the
+quality control process, monitor workers safety, or do other kinds of advanced image analysis while reducing cost.
+This is a generic solution to automate the inspection process using Vision AI and Dataflow. The solution
 works as below:
 
-1. Images are uploaded in a GCS bucket from source systems.
-2. An automated notification is sent out to a Pub/Sub topic for processing.
-3. Dataflow pipeline processes the image file based on the configurations provided:
-   a) Features: List of Vision API features to use for processing
-   b) BatchSize: Maximum 16 images per call. This helps to process large scale image files in a
-   performance optimal manner.
-   c) Parallel Processing: Control the number of parallel calls to API to leverage number of
-   quotas (concurrent api calls) for Vision API.
-   d) BigQuery Dataset: Based on the response tables will be created automatically in this dataset.
-4. Dataflow calls the Vision API and store the response in BigQuery for each feature type.
+1. Images are uploaded in a Cloud Storage bucket from source systems.
+2. An automated notification is sent to a Pub/Sub topic every time a new file is created.
+3. Dataflow pipeline processes the image file based on the following parameters:
+   a) Features: List of Vision API features to use for processing.
+   b) Batch size: Up to 16 images per call. Batching helps to process a large number of image files in the most efficient manner.
+   c) Parallel Processing: Control the maximum number of parallel calls to API to avoid exceeding
+   Vision API quotas.
+   d) BigQuery Dataset: Based on the requested features, tables will be created automatically in this dataset.
+4. Dataflow calls Vision API with the list of files to process.
+5. Vision API analyzes the images and returns the annotations to Dataflow.
+6. Dataflow stores responses to BigQuery.
 
 # Getting Started
 
 ### Prepare infrastructure
 
-We recommend that you create a new Google Cloud project to try this solution. It will simplify the
+We recommend creating a new Google Cloud project to try this solution. It will simplify the
 cleanup process.
 
 #### Create an input bucket
@@ -88,7 +81,7 @@ As an example, we will perform two tests:
 
 * Test # 1: Process a small set of files for a number of feature types to validate if the tables are
   created with the correct schema automatically.
-* Test # 2: Process >30k images from flickr dataset for Label and Landmark detection.
+* Test # 2: Process about 30,000 images from a public Flickr dataset for Label and Landmark detection.
 
 ## Test 1
 
@@ -121,10 +114,12 @@ gcloud storage cp data-sample/* gs://${IMAGE_BUCKET}
 ```
 
 #### Validate Custom Counters in Dataflow
-
+Shortly after the files are sent, the Dataflow Job's Customer Counters panel will show:
 ![custom counters](diagram/initial-test-counters.png)
 
-#### Query information schema table to validate tables
+Hint: type "numberOf" in the Filter field to only display the counters shown above.
+
+#### Query the information schema view to validate tables
 
 ```
 bq query --nouse_legacy_sql "SELECT table_name FROM ${BIGQUERY_DATASET}.INFORMATION_SCHEMA.TABLES ORDER BY table_name;"
@@ -225,10 +220,8 @@ The output should look like:
 ]
 ```
 
-[//]: # (TODO - move this notice to the to top of the README)
-_Notice_: this schema reflects the attributes availabe in Vision API of a specific version. Google
-frequently updates the API to include new attributes and update the quality of the attribute
-detection.
+_Notice_: this schema reflects the attributes available in Vision API of a specific version. Google
+frequently updates the API to include new attributes and improve attribute detection quality.
 
 #### Validate data
 
@@ -258,7 +251,7 @@ gcloud dataflow jobs cancel --region ${REGION} $(gcloud dataflow jobs list --reg
 
 ## Test 2
 
-### Analysing Flickr30kImage dataset
+### Analyzing Flickr30kImage dataset
 
 In this test, we will detect labels and landmarks in images
 from [the public Flickr30k image dataset](https://www.kaggle.com/hsankesara/flickr-image-dataset)
@@ -294,16 +287,16 @@ processing the files.
 
 Follow the instructions in [Kaggle documentation](https://www.kaggle.com/docs/api) to create a free
 Kaggle account and generate a new authentication token. This token will be saved on your computer,
-typically in the Downloads folder. You will need to copy its contents later in order to create the
+typically in the Downloads folder. You will need to copy its contents later to create the
 same file on a temporary VM.
 
 #### Create a Cloud Compute VM and connect to it
 
-Flickr30K is a large dataset (9GB) of images and the Cloud Shell's VM does not have large enough
+Flickr30K is a large dataset (9GB) of images and the Cloud Shell's VM does not have a large enough
 disk to copy this archive.
 
 Create a VM with a big enough disk to store the archive. Also give the read/write scope for the
-default compute service account in order to be able to write to the bucket.
+default compute service account to be able to write to the bucket.
 
 ```shell
 ZONE=$(gcloud compute zones list --limit 1 --filter region=${REGION} --format='get(NAME)')
@@ -345,7 +338,7 @@ sudo apt install unzip
 unzip -q flickr-image-dataset.zip
 ```
 
-It will take a couple of minutes to unzip the file.
+It will take a several minutes to unzip the archive.
 
 #### Copy the images to the destination bucket
 
@@ -364,7 +357,7 @@ Operation completed over 31.8k objects/4.1 GiB.
 
 #### Observe the processing progress
 
-During the file copy process, let's take a look at the Dataflow console. Navigate to the Dataflow
+During the file copy process, let's look at the Dataflow console. Navigate to the Dataflow
 Jobs page and select the "vision-analytics-flickr" pipeline. You should be able to see these
 customer counters change periodically until all the files are processed:
 
@@ -403,7 +396,7 @@ gcloud dataflow jobs list --region $REGION --filter="NAME:vision-analytics-flick
 
 We have processed over 30,000 images for label and landmark annotation under 30 minutes with the
 default quota.
-Let's see if we can gather following stats from these files. You can run these queries in the
+Let's see if we can gather the following stats from these files. You can run these queries in the
 BigQuery SQL workspace.
 
 Be aware that the numbers that you will see can vary from the query results in this demo. Vision API
@@ -569,7 +562,7 @@ The subscription associated with the topic will be automatically deleted.
 
 ## Delete the Cloud Storage bucket
 
-Due to the large number of files to delete the most efficient way to do it is via Google Cloud
+Due to the large number of files to delete, the most efficient way to do it is via Google Cloud
 Console. Please see
 [these instructions](https://cloud.google.com/storage/docs/deleting-buckets#delete-bucket-console)
 on how to do it.
