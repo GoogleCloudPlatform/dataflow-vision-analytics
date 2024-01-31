@@ -43,11 +43,6 @@ public abstract class PubSubNotificationToGCSUriDoFn extends DoFn<PubsubMessage,
   @ProcessElement
   public void processElement(ProcessContext c) {
     PubsubMessage message = c.element();
-    String eventType = message.getAttribute("eventType");
-    if (!Objects.equals(eventType, "OBJECT_FINALIZE")) {
-      LOG.debug("PubSub event type '{}' will not be processed", eventType);
-      return;
-    }
     VisionAnalyticsPipeline.totalFiles.inc();
 
     String bucket = message.getAttribute("bucketId");

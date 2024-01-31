@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -264,6 +265,8 @@ public class VisionAnalyticsPipeline {
                 PubsubIO.readMessagesWithAttributes().fromSubscription(options.getSubscriberId()));
     imageFileUris =
         pubSubNotifications
+            .apply("Filter out Deletes or Updates", Filter.by(message ->
+                Objects.equals(message.getAttribute("eventType"), "OBJECT_FINALIZE")))
             .apply(
                 "PubSub to GCS URIs",
                 ParDo.of(PubSubNotificationToGCSUriDoFn.create(SUPPORTED_CONTENT_TYPES)));
