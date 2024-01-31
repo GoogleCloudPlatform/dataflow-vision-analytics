@@ -40,15 +40,21 @@ public abstract class BatchRequestsTransform
 
   public abstract long getBatchSize();
 
+  public abstract int getMaxBatchCompletionDurationInSeconds();
+
   public abstract int getKeyRange();
 
   /**
    * @param batchSize should be between 1 and 16
-   * @param keyRange determines the level of parallelism. Should be a positive non-zero integer.
+   * @param keyRange  determines the level of parallelism. Should be a positive non-zero integer.
    * @return a new transform
    */
-  public static BatchRequestsTransform create(long batchSize, int keyRange) {
-    return builder().setBatchSize(batchSize).setKeyRange(keyRange).build();
+  public static BatchRequestsTransform create(long batchSize, int maxCompletionDurationInSeconds,
+      int keyRange) {
+    return builder()
+        .setBatchSize(batchSize)
+        .setMaxBatchCompletionDurationInSeconds(maxCompletionDurationInSeconds)
+        .setKeyRange(keyRange).build();
   }
 
   @Override
@@ -93,6 +99,8 @@ public abstract class BatchRequestsTransform
   public abstract static class Builder {
 
     public abstract Builder setBatchSize(long newBatchSize);
+
+    public abstract Builder setMaxBatchCompletionDurationInSeconds(int value);
 
     public abstract Builder setKeyRange(int newKeyRange);
 

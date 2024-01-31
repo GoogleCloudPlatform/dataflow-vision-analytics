@@ -56,17 +56,15 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Main class for the vision analytics processing. */
+/**
+ * Main class for the vision analytics processing.
+ */
 public class VisionAnalyticsPipeline {
 
   public static final Logger LOG = LoggerFactory.getLogger(VisionAnalyticsPipeline.class);
@@ -93,9 +91,9 @@ public class VisionAnalyticsPipeline {
 
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
-   * blocking execution is required, use the {@link
-   * VisionAnalyticsPipeline#run(VisionAnalyticsPipelineOptions)} method to start the pipeline and
-   * invoke {@code result.waitUntilFinish()} on the {@link PipelineResult}
+   * blocking execution is required, use the
+   * {@link VisionAnalyticsPipeline#run(VisionAnalyticsPipelineOptions)} method to start the
+   * pipeline and invoke {@code result.waitUntilFinish()} on the {@link PipelineResult}
    *
    * @param args The command-line arguments to the pipeline.
    */
@@ -129,13 +127,15 @@ public class VisionAnalyticsPipeline {
     PCollection<Iterable<String>> batchedImageURIs =
         imageFileUris.apply(
             "Batch images",
-            BatchRequestsTransform.create(options.getBatchSize(), options.getKeyRange()));
+            BatchRequestsTransform.create(options.getBatchSize(),
+                options.getMaxBatchCompletionDurationInSecs(),
+                options.getKeyRange()));
 
     PCollection<KV<String, AnnotateImageResponse>> annotatedImages =
         options.isSimulate()
             ? batchedImageURIs.apply(
-                "Simulate Annotation",
-                ParDo.of(new AnnotateImagesSimulatorDoFn(options.getFeatures())))
+            "Simulate Annotation",
+            ParDo.of(new AnnotateImagesSimulatorDoFn(options.getFeatures())))
             : batchedImageURIs.apply(
                 "Annotate Images", ParDo.of(new AnnotateImagesDoFn(options.getFeatures())));
 
@@ -243,8 +243,8 @@ public class VisionAnalyticsPipeline {
   }
 
   /**
-   * Reads PubSub messages from the subscription provided by {@link
-   * VisionAnalyticsPipelineOptions#getSubscriberId()}.
+   * Reads PubSub messages from the subscription provided by
+   * {@link VisionAnalyticsPipelineOptions#getSubscriberId()}.
    *
    * <p>The messages are expected to confirm to the GCS notification message format defined in
    * https://cloud.google.com/storage/docs/pubsub-notifications

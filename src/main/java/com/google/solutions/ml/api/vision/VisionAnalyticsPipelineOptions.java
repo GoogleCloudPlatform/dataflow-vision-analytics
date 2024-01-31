@@ -47,6 +47,11 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setBatchSize(Integer value);
 
+  @Description("Maximum duration (in seconds) for wait for a complete batch of images")
+  @Default.Integer(30)
+  int getMaxBatchCompletionDurationInSecs();
+  void setMaxBatchCompletionDurationInSecs(int value);
+
   @Description("BigQuery dataset")
   @Validation.Required
   String getDatasetName();
