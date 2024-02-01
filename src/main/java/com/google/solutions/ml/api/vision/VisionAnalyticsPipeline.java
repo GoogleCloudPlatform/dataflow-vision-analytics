@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -56,17 +57,15 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Main class for the vision analytics processing. */
+/**
+ * Main class for the vision analytics processing.
+ */
 public class VisionAnalyticsPipeline {
 
   public static final Logger LOG = LoggerFactory.getLogger(VisionAnalyticsPipeline.class);
@@ -81,8 +80,10 @@ public class VisionAnalyticsPipeline {
       Metrics.counter(VisionAnalyticsPipeline.class, "numberOfQuotaExceededRequests");
 
   public static final Distribution batchSizeDistribution =
-      Metrics.distribution(VisionAnalyticsPipeline.class, "batchSizeDistribution");
+      Metrics.distribution(VisionAnalyticsPipeline.class, "batchSize");
 
+  public static final Distribution successfulAPILatencyDistribution =
+      Metrics.distribution(VisionAnalyticsPipeline.class, "visionAPILatency");
   private static final Set<String> SUPPORTED_CONTENT_TYPES =
       ImmutableSet.of("image/jpeg", "image/png", "image/tiff", "image/tif", "image/gif");
 
@@ -91,9 +92,9 @@ public class VisionAnalyticsPipeline {
 
   /**
    * Main entry point for executing the pipeline. This will run the pipeline asynchronously. If
-   * blocking execution is required, use the {@link
-   * VisionAnalyticsPipeline#run(VisionAnalyticsPipelineOptions)} method to start the pipeline and
-   * invoke {@code result.waitUntilFinish()} on the {@link PipelineResult}
+   * blocking execution is required, use the
+   * {@link VisionAnalyticsPipeline#run(VisionAnalyticsPipelineOptions)} method to start the
+   * pipeline and invoke {@code result.waitUntilFinish()} on the {@link PipelineResult}
    *
    * @param args The command-line arguments to the pipeline.
    */
@@ -127,13 +128,15 @@ public class VisionAnalyticsPipeline {
     PCollection<Iterable<String>> batchedImageURIs =
         imageFileUris.apply(
             "Batch images",
-            BatchRequestsTransform.create(options.getBatchSize(), options.getKeyRange()));
+            BatchRequestsTransform.create(options.getBatchSize(),
+                options.getMaxBatchCompletionDurationInSecs(),
+                options.getKeyRange()));
 
     PCollection<KV<String, AnnotateImageResponse>> annotatedImages =
         options.isSimulate()
             ? batchedImageURIs.apply(
-                "Simulate Annotation",
-                ParDo.of(new AnnotateImagesSimulatorDoFn(options.getFeatures())))
+            "Simulate Annotation",
+            ParDo.of(new AnnotateImagesSimulatorDoFn(options.getFeatures())))
             : batchedImageURIs.apply(
                 "Annotate Images", ParDo.of(new AnnotateImagesDoFn(options.getFeatures())));
 
@@ -241,8 +244,8 @@ public class VisionAnalyticsPipeline {
   }
 
   /**
-   * Reads PubSub messages from the subscription provided by {@link
-   * VisionAnalyticsPipelineOptions#getSubscriberId()}.
+   * Reads PubSub messages from the subscription provided by
+   * {@link VisionAnalyticsPipelineOptions#getSubscriberId()}.
    *
    * <p>The messages are expected to confirm to the GCS notification message format defined in
    * https://cloud.google.com/storage/docs/pubsub-notifications
@@ -262,16 +265,11 @@ public class VisionAnalyticsPipeline {
                 PubsubIO.readMessagesWithAttributes().fromSubscription(options.getSubscriberId()));
     imageFileUris =
         pubSubNotifications
+            .apply("Filter out Deletes or Updates", Filter.by(message ->
+                Objects.equals(message.getAttribute("eventType"), "OBJECT_FINALIZE")))
             .apply(
                 "PubSub to GCS URIs",
-                ParDo.of(PubSubNotificationToGCSUriDoFn.create(SUPPORTED_CONTENT_TYPES)))
-            .apply(
-                "Fixed Window",
-                Window.<String>into(
-                        FixedWindows.of(Duration.standardSeconds(options.getWindowInterval())))
-                    .triggering(AfterWatermark.pastEndOfWindow())
-                    .discardingFiredPanes()
-                    .withAllowedLateness(Duration.standardMinutes(15)));
+                ParDo.of(PubSubNotificationToGCSUriDoFn.create(SUPPORTED_CONTENT_TYPES)));
     return imageFileUris;
   }
 

@@ -47,11 +47,10 @@ public interface VisionAnalyticsPipelineOptions extends DataflowPipelineOptions 
 
   void setBatchSize(Integer value);
 
-  @Description("Window interval in seconds (default is 5)")
-  @Default.Integer(5)
-  Integer getWindowInterval();
-
-  void setWindowInterval(Integer value);
+  @Description("Maximum duration (in seconds) for wait for a complete batch of images")
+  @Default.Integer(30)
+  int getMaxBatchCompletionDurationInSecs();
+  void setMaxBatchCompletionDurationInSecs(int value);
 
   @Description("BigQuery dataset")
   @Validation.Required
