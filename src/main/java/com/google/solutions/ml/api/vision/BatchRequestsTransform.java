@@ -74,7 +74,8 @@ public abstract class BatchRequestsTransform
                     }
                   }))
           .apply("Group Into Batches", GroupIntoBatches.<Integer, String>ofSize(getBatchSize())
-              .withMaxBufferingDuration(Duration.standardSeconds(30)))
+              .withMaxBufferingDuration(
+                  Duration.standardSeconds(getMaxBatchCompletionDurationInSeconds())))
           .apply("Convert to Batches", Values.create());
     } else {
       return input.apply(

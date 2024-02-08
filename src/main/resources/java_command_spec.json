@@ -1,4 +1,0 @@
-{
-  "mainClass": "com.google.solutions.ml.api.vision.VisionAnalyticsPipeline",
-  "classPath": "/template/df-vision-api-template/libs/*:/template/df-vision-api-template/classes"
-}

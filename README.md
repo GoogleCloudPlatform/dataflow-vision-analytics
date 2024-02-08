@@ -123,7 +123,6 @@ Hint: type "numberOf" in the Filter field to only display the counters shown abo
 
 ```
 bq query --nouse_legacy_sql "SELECT table_name FROM ${BIGQUERY_DATASET}.INFORMATION_SCHEMA.TABLES ORDER BY table_name;"
-
 ```
 
 You will see output like this:
@@ -226,8 +225,7 @@ frequently updates the API to include new attributes and improve attribute detec
 #### Validate data
 
 ```shell
- bq query --nouse_legacy_sql "SELECT SPLIT(gcs_uri, '/')[OFFSET(3)] file_name, description, score, locations FROM ${BIGQUERY_DATASET}.landmark_annotation ORDER BY score DESC"
-
+bq query --nouse_legacy_sql "SELECT SPLIT(gcs_uri, '/')[OFFSET(3)] file_name, description, score, locations FROM ${BIGQUERY_DATASET}.landmark_annotation ORDER BY score DESC"
 ```
 
 You will see that the Vision Analytics API recognized multiple landmarks in the `eiffel_tower.jpg`
@@ -405,12 +403,10 @@ test the solution.
 
 #### Top 20 labels in the dataset
 
-```
+```sql
 SELECT  description, count(*) as count 
 	FROM vision_analytics.label_annotation
-	GROUP BY  description
-	ORDER BY count desc
-	LIMIT 20
+	GROUP BY  description ORDER BY count DESC LIMIT 20
 ```
 
 ```text
